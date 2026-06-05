@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+*.exe
+*.bin
+.idea/
+.vscode/

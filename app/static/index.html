@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agents Hub</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+  .agent-card { transition: all .2s; cursor: pointer; border: 2px solid transparent; }
+  .agent-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.15); }
+  .agent-card.selected { border-color: var(--card-color) !important; background: rgba(255,255,255,.06); }
+  .agent-card.in-pipeline { opacity: .5; pointer-events: none; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1a1d27; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+  .output-box { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; min-height: 220px; padding: 1.25rem; font-family: monospace; font-size: .85rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .step-card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; }
+  .blink { animation: blink .8s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tab-active { background: #6366f1; color: white; }
+  .tab-inactive { background: #1e2235; color: #94a3b8; }
+  .tab-inactive:hover { background: #252a3a; }
+  .badge { font-size: .65rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+  .drag-over { border: 2px dashed #6366f1 !important; }
+  textarea:focus, input:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+  .result-step { border-left: 3px solid; padding-left: 1rem; margin-bottom: 1.5rem; }
+  .copy-btn { opacity: 0; transition: opacity .2s; }
+  .output-box:hover .copy-btn { opacity: 1; }
+  .spinner { border: 3px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; width: 20px; height: 20px; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+<!-- HEADER -->
+<header class="flex items-center justify-between px-6 py-3 border-b border-gray-800" style="background:#131620">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg" style="background:#6366f1">🤖</div>
+    <span class="font-bold text-lg tracking-tight">Agents Hub</span>
+    <span class="badge bg-indigo-900 text-indigo-300 ml-1">23 agentes</span>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="setTab('single')" id="tab-single" class="tab-active px-4 py-1.5 rounded-lg text-sm font-medium transition">Agente Individual</button>
+    <button onclick="setTab('orchestration')" id="tab-orch" class="tab-inactive px-4 py-1.5 rounded-lg text-sm font-medium transition">Orquestación</button>
+  </div>
+  <div class="text-xs text-gray-500">Llama 3.3 70B · Groq</div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="w-72 flex-shrink-0 border-r border-gray-800 overflow-y-auto p-3" style="background:#131620">
+    <input type="text" id="search-agents" placeholder="Buscar agente..." oninput="filterAgents(this.value)"
+      class="w-full px-3 py-2 rounded-lg text-sm mb-3" style="background:#1e2235; border:1px solid #2d3148; color:#e2e8f0" />
+
+    <div id="sidebar-tech" class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">Tech</p>
+      <div id="tech-agents" class="space-y-1"></div>
+    </div>
+    <div id="sidebar-biz">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">Small Business</p>
+      <div id="biz-agents" class="space-y-1"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 overflow-hidden flex flex-col">
+
+    <!-- SINGLE AGENT TAB -->
+    <div id="tab-single-content" class="flex-1 flex flex-col overflow-hidden p-5 gap-4">
+      <!-- Selected agent banner -->
+      <div id="agent-banner" class="hidden rounded-xl p-4 flex items-center gap-4" style="background:#1a1d27; border:1px solid #2d3148">
+        <div id="banner-icon" class="text-3xl w-12 h-12 flex items-center justify-center rounded-xl" style="background:#1e2235">🤖</div>
+        <div>
+          <div id="banner-name" class="font-semibold text-base"></div>
+          <div id="banner-desc" class="text-sm text-gray-400"></div>
+        </div>
+        <div class="ml-auto">
+          <button onclick="clearOutput()" class="text-xs text-gray-500 hover:text-gray-300 px-3 py-1 rounded-lg transition" style="background:#252a3a">Limpiar</button>
+        </div>
+      </div>
+      <div id="no-agent-msg" class="text-center text-gray-500 py-6 text-sm">← Selecciona un agente del panel izquierdo</div>
+
+      <!-- Output -->
+      <div class="flex-1 overflow-y-auto">
+        <div id="output" class="output-box relative" style="display:none">
+          <div id="output-text"></div>
+          <span id="cursor" class="blink hidden">▍</span>
+          <button onclick="copyOutput()" class="copy-btn absolute top-3 right-3 text-xs text-gray-400 hover:text-white px-2 py-1 rounded" style="background:#252a3a">Copiar</button>
+        </div>
+        <!-- History -->
+        <div id="history" class="space-y-3 mt-3"></div>
+      </div>
+
+      <!-- Input area -->
+      <div id="input-area" class="hidden">
+        <div class="flex gap-2 items-end">
+          <textarea id="task-input" rows="3" placeholder="Describe la tarea para este agente..."
+            class="flex-1 rounded-xl px-4 py-3 text-sm resize-none"
+            style="background:#1a1d27; border:1px solid #2d3148; color:#e2e8f0"
+            onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))runAgent()"></textarea>
+          <button onclick="runAgent()" id="run-btn"
+            class="px-5 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-2"
+            style="background:#6366f1; color:white; min-width:100px">
+            <span id="run-btn-text">Ejecutar</span>
+            <span id="run-spinner" class="spinner hidden"></span>
+          </button>
+        </div>
+        <p class="text-xs text-gray-600 mt-1 ml-1">Ctrl+Enter para ejecutar</p>
+      </div>
+    </div>
+
+    <!-- ORCHESTRATION TAB -->
+    <div id="tab-orch-content" class="flex-1 flex overflow-hidden" style="display:none">
+
+      <!-- Pipeline builder -->
+      <div class="w-80 flex-shrink-0 border-r border-gray-800 flex flex-col p-4 gap-3" style="background:#131620">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-sm">Pipeline</h2>
+          <div class="flex gap-1">
+            <button onclick="setPipelineMode('sequential')" id="btn-seq"
+              class="text-xs px-3 py-1 rounded-lg tab-active transition">Secuencial</button>
+            <button onclick="setPipelineMode('parallel')" id="btn-par"
+              class="text-xs px-3 py-1 rounded-lg tab-inactive transition">Paralelo</button>
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-500" id="mode-desc">Los agentes se ejecutan en orden, pasando el resultado al siguiente.</p>
+
+        <div id="pipeline-steps" class="space-y-2 overflow-y-auto flex-1"></div>
+
+        <div id="pipeline-empty" class="text-center text-gray-600 text-xs py-4">
+          Haz clic en los agentes del panel izquierdo para agregarlos al pipeline
+        </div>
+
+        <button onclick="clearPipeline()" class="text-xs text-gray-500 hover:text-red-400 transition text-left">Limpiar pipeline</button>
+
+        <button onclick="runOrchestration()" id="orch-run-btn"
+          class="w-full py-2.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2"
+          style="background:#6366f1; color:white">
+          <span id="orch-btn-text">▶ Ejecutar Pipeline</span>
+          <span id="orch-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+
+      <!-- Orchestration output -->
+      <div class="flex-1 overflow-y-auto p-5">
+        <div id="orch-placeholder" class="text-center text-gray-600 text-sm pt-10">
+          Arma tu pipeline y ejecuta para ver los resultados aquí
+        </div>
+        <div id="orch-results" class="space-y-4" style="display:none"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let agents = [];
+let selectedAgent = null;
+let currentTab = 'single';
+let pipeline = [];
+let pipelineMode = 'sequential';
+let isRunning = false;
+
+async function init() {
+  const res = await fetch('/api/agents');
+  agents = await res.json();
+  renderSidebar();
+}
+
+function renderSidebar(filter = '') {
+  const tech = agents.filter(a => a.category === 'tech' && (!filter || a.name.toLowerCase().includes(filter)));
+  const biz  = agents.filter(a => a.category === 'business' && (!filter || a.name.toLowerCase().includes(filter)));
+  document.getElementById('tech-agents').innerHTML = tech.map(agentCard).join('');
+  document.getElementById('biz-agents').innerHTML  = biz.map(agentCard).join('');
+}
+
+function agentCard(a) {
+  const inPipeline = pipeline.some(s => s.agentId === a.id && currentTab === 'orchestration');
+  return `
+  <div class="agent-card rounded-lg px-3 py-2 flex items-center gap-2 ${inPipeline ? 'in-pipeline' : ''}"
+       style="background:#1a1d27; --card-color:${a.color}"
+       id="card-${a.id}" onclick="handleCardClick('${a.id}')">
+    <span class="text-lg w-7 text-center">${a.icon}</span>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-medium truncate">${a.name}</div>
+      <div class="text-xs text-gray-500 truncate">${a.description}</div>
+    </div>
+    <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${a.color}"></div>
+  </div>`;
+}
+
+function handleCardClick(agentId) {
+  if (currentTab === 'single') selectAgent(agentId);
+  else addToPipeline(agentId);
+}
+
+function selectAgent(agentId) {
+  selectedAgent = agents.find(a => a.id === agentId);
+  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById(`card-${agentId}`);
+  if (card) card.classList.add('selected');
+
+  document.getElementById('agent-banner').classList.remove('hidden');
+  document.getElementById('no-agent-msg').style.display = 'none';
+  document.getElementById('banner-icon').textContent = selectedAgent.icon;
+  document.getElementById('banner-icon').style.background = selectedAgent.color + '33';
+  document.getElementById('banner-name').textContent = selectedAgent.name;
+  document.getElementById('banner-desc').textContent = selectedAgent.description;
+  document.getElementById('input-area').classList.remove('hidden');
+  document.getElementById('task-input').focus();
+}
+
+async function runAgent() {
+  if (!selectedAgent || isRunning) return;
+  const task = document.getElementById('task-input').value.trim();
+  if (!task) return;
+
+  isRunning = true;
+  setRunBtnState(true);
+
+  const outputBox = document.getElementById('output');
+  const outputText = document.getElementById('output-text');
+  const cursor = document.getElementById('cursor');
+
+  outputBox.style.display = 'block';
+  outputText.textContent = '';
+  cursor.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/run/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_id: selectedAgent.id, task }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              fullText += parsed.content;
+              outputText.textContent = fullText;
+              outputBox.scrollTop = outputBox.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    cursor.classList.add('hidden');
+    addToHistory(selectedAgent, task, fullText);
+    document.getElementById('task-input').value = '';
+  } catch (e) {
+    outputText.textContent = 'Error: ' + e.message;
+  } finally {
+    cursor.classList.add('hidden');
+    isRunning = false;
+    setRunBtnState(false);
+  }
+}
+
+function addToHistory(agent, task, result) {
+  const history = document.getElementById('history');
+  const item = document.createElement('div');
+  item.className = 'rounded-xl p-4';
+  item.style = 'background:#1a1d27; border:1px solid #2d3148';
+  item.innerHTML = `
+    <div class="flex items-center gap-2 mb-2">
+      <span>${agent.icon}</span>
+      <span class="text-xs font-medium" style="color:${agent.color}">${agent.name}</span>
+      <span class="text-xs text-gray-600 ml-auto">${new Date().toLocaleTimeString()}</span>
+    </div>
+    <div class="text-xs text-gray-400 mb-2 italic truncate">"${task}"</div>
+    <div class="text-sm text-gray-300" style="white-space:pre-wrap;max-height:200px;overflow-y:auto">${escapeHtml(result)}</div>`;
+  history.prepend(item);
+}
+
+function clearOutput() {
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('output-text').textContent = '';
+  document.getElementById('history').innerHTML = '';
+}
+
+function copyOutput() {
+  const text = document.getElementById('output-text').textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles'));
+}
+
+// --- ORCHESTRATION ---
+
+function addToPipeline(agentId) {
+  const agent = agents.find(a => a.id === agentId);
+  if (!agent) return;
+  const idx = pipeline.length;
+  pipeline.push({ agentId, task: '' });
+  renderPipeline();
+}
+
+function removeFromPipeline(idx) {
+  pipeline.splice(idx, 1);
+  renderPipeline();
+}
+
+function renderPipeline() {
+  const container = document.getElementById('pipeline-steps');
+  const empty = document.getElementById('pipeline-empty');
+  empty.style.display = pipeline.length ? 'none' : 'block';
+
+  container.innerHTML = pipeline.map((step, idx) => {
+    const agent = agents.find(a => a.id === step.agentId);
+    if (!agent) return '';
+    return `
+    <div class="step-card p-3 space-y-2">
+      <div class="flex items-center gap-2">
+        <span class="text-sm w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background:${agent.color}">${idx+1}</span>
+        <span class="text-sm">${agent.icon} ${agent.name}</span>
+        <button onclick="removeFromPipeline(${idx})" class="ml-auto text-gray-600 hover:text-red-400 text-xs">✕</button>
+      </div>
+      <textarea rows="2" placeholder="Tarea para este agente..."
+        class="w-full px-2 py-1.5 rounded-lg text-xs resize-none"
+        style="background:#252a3a; border:1px solid #374151; color:#e2e8f0"
+        oninput="pipeline[${idx}].task=this.value">${escapeHtml(step.task)}</textarea>
+    </div>`;
+  }).join('');
+
+  // Update sidebar cards opacity
+  renderSidebar();
+}
+
+function clearPipeline() {
+  pipeline = [];
+  renderPipeline();
+}
+
+function setPipelineMode(mode) {
+  pipelineMode = mode;
+  document.getElementById('btn-seq').className = `text-xs px-3 py-1 rounded-lg transition ${mode==='sequential'?'tab-active':'tab-inactive'}`;
+  document.getElementById('btn-par').className  = `text-xs px-3 py-1 rounded-lg transition ${mode==='parallel'?'tab-active':'tab-inactive'}`;
+  document.getElementById('mode-desc').textContent = mode === 'sequential'
+    ? 'Los agentes se ejecutan en orden, pasando el resultado al siguiente.'
+    : 'Todos los agentes reciben la misma entrada y corren en paralelo.';
+}
+
+async function runOrchestration() {
+  if (isRunning || pipeline.length === 0) return;
+  const steps = pipeline.filter(s => s.task.trim());
+  if (steps.length === 0) { alert('Agrega tareas a los pasos del pipeline.'); return; }
+
+  isRunning = true;
+  document.getElementById('orch-btn-text').textContent = 'Ejecutando...';
+  document.getElementById('orch-spinner').classList.remove('hidden');
+
+  const resultsEl = document.getElementById('orch-results');
+  const placeholder = document.getElementById('orch-placeholder');
+  resultsEl.style.display = 'block';
+  placeholder.style.display = 'none';
+  resultsEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/orchestrate/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps: steps.map(s => ({ agent_id: s.agentId, task: s.task })), mode: pipelineMode }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        try {
+          const msg = JSON.parse(data);
+          handleOrchMessage(msg, resultsEl, steps);
+        } catch {}
+      }
+    }
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="text-red-400 text-sm">Error: ${e.message}</div>`;
+  } finally {
+    isRunning = false;
+    document.getElementById('orch-btn-text').textContent = '▶ Ejecutar Pipeline';
+    document.getElementById('orch-spinner').classList.add('hidden');
+  }
+}
+
+function handleOrchMessage(msg, container, steps) {
+  if (msg.type === 'step_start') {
+    const el = document.createElement('div');
+    el.id = `orch-step-${msg.step}`;
+    el.className = 'rounded-xl p-4';
+    el.style = 'background:#1a1d27; border:1px solid #2d3148';
+    el.innerHTML = `
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">${msg.icon}</span>
+        <span class="font-medium text-sm">${msg.agent}</span>
+        <span class="badge bg-indigo-900 text-indigo-300">Paso ${msg.step}/${msg.total}</span>
+        <div class="spinner ml-auto"></div>
+      </div>
+      <div class="text-xs text-gray-500 italic mb-2">"${escapeHtml(steps[msg.step-1]?.task || '')}"</div>
+      <div class="output-box text-xs" id="orch-output-${msg.step}">Ejecutando...</div>`;
+    container.appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  } else if (msg.type === 'step_result' || msg.type === 'parallel_result') {
+    const agent = msg.type === 'parallel_result' ? agents.find(a => a.name === msg.agent) : null;
+    let el = document.getElementById(`orch-step-${msg.step}`);
+
+    if (!el) {
+      el = document.createElement('div');
+      el.id = `orch-step-${msg.step}`;
+      el.className = 'rounded-xl p-4';
+      el.style = 'background:#1a1d27; border:1px solid #2d3148';
+      el.innerHTML = `
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-lg">${msg.icon || '🤖'}</span>
+          <span class="font-medium text-sm">${msg.agent}</span>
+        </div>
+        <div class="output-box text-xs" id="orch-output-${msg.step}"></div>`;
+      container.appendChild(el);
+    }
+
+    const spinner = el.querySelector('.spinner');
+    if (spinner) spinner.remove();
+    const out = document.getElementById(`orch-output-${msg.step}`);
+    if (out) out.textContent = msg.content;
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  } else if (msg.type === 'done') {
+    const done = document.createElement('div');
+    done.className = 'text-center text-green-400 text-sm font-medium py-2';
+    done.textContent = '✓ Pipeline completado';
+    container.appendChild(done);
+  }
+}
+
+// --- TABS ---
+function setTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-single-content').style.display = tab === 'single' ? 'flex' : 'none';
+  document.getElementById('tab-orch-content').style.display  = tab === 'orchestration' ? 'flex' : 'none';
+  document.getElementById('tab-single').className = `px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab==='single'?'tab-active':'tab-inactive'}`;
+  document.getElementById('tab-orch').className   = `px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab==='orchestration'?'tab-active':'tab-inactive'}`;
+  renderSidebar();
+}
+
+function filterAgents(q) { renderSidebar(q.toLowerCase()); }
+
+function setRunBtnState(running) {
+  document.getElementById('run-btn-text').textContent = running ? 'Ejecutando...' : 'Ejecutar';
+  document.getElementById('run-spinner').classList.toggle('hidden', !running);
+  document.getElementById('run-btn').disabled = running;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
