@@ -26,6 +26,7 @@ app.add_middleware(
     allow_origins=[
         "https://rpgdevelopment.com",
         "https://www.rpgdevelopment.com",
+        "https://web-production-07e84.up.railway.app",
         "http://localhost:3000",
         "http://localhost:5500",
         "http://127.0.0.1:5500",
