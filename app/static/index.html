@@ -171,6 +171,28 @@
 
         <button onclick="clearPipeline()" class="text-xs text-gray-500 hover:text-red-400 transition text-left">Limpiar pipeline</button>
 
+        <!-- Document attachment for orchestration -->
+        <div class="border-t pt-3 space-y-2" style="border-color:#1e2235">
+          <div class="flex items-center gap-2 flex-wrap">
+            <label for="orch-file-input"
+              class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition hover:opacity-80"
+              style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
+              📎 Adjuntar PDF / Word
+            </label>
+            <input type="file" id="orch-file-input" accept=".pdf,.docx" class="hidden"
+              onchange="handleFileUpload(this)" />
+            <div id="orch-doc-badge" class="hidden items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
+              style="background:#1a1d27; border:1px solid #6366f1; color:#a5b4fc">
+              <span id="orch-doc-badge-name"></span>
+              <button onclick="clearDocument()" class="text-gray-500 hover:text-red-400 ml-1" style="cursor:pointer">✕</button>
+            </div>
+            <div id="orch-doc-loading" class="hidden items-center gap-1.5 text-xs text-gray-500">
+              <div class="spinner" style="width:12px;height:12px;border-width:2px"></div>
+              <span>Extrayendo...</span>
+            </div>
+          </div>
+        </div>
+
         <button onclick="runOrchestration()" id="orch-run-btn"
           class="w-full py-2.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2"
           style="background:#6366f1; color:white">
@@ -200,6 +222,7 @@ let pipelineMode = 'sequential';
 let isRunning = false;
 let documentContext = '';
 let currentOutput = '';
+let currentOrchOutput = '';
 
 async function init() {
   const res = await fetch('/api/agents');
@@ -353,10 +376,12 @@ async function handleFileUpload(input) {
   const file = input.files[0];
   if (!file) return;
 
-  const loading = document.getElementById('doc-loading');
-  const badge = document.getElementById('doc-badge');
+  // Show loading in whichever panel triggered the upload
+  const isOrch = input.id === 'orch-file-input';
+  const loadingId = isOrch ? 'orch-doc-loading' : 'doc-loading';
+  const loading = document.getElementById(loadingId);
   loading.style.display = 'flex';
-  badge.style.display = 'none';
+  hideBothDocBadges();
 
   const formData = new FormData();
   formData.append('file', file);
@@ -370,8 +395,12 @@ async function handleFileUpload(input) {
     const data = await res.json();
     documentContext = data.text;
     const kb = Math.round(data.chars / 100) / 10;
-    document.getElementById('doc-badge-name').textContent = `📎 ${file.name} · ${kb}k chars`;
-    badge.style.display = 'flex';
+    const label = `📎 ${file.name} · ${kb}k chars`;
+    // Show badge in both panels so it's always visible regardless of active tab
+    document.getElementById('doc-badge-name').textContent = label;
+    document.getElementById('doc-badge').style.display = 'flex';
+    document.getElementById('orch-doc-badge-name').textContent = label;
+    document.getElementById('orch-doc-badge').style.display = 'flex';
   } catch (e) {
     alert('Error al procesar el documento: ' + e.message);
     documentContext = '';
@@ -381,21 +410,35 @@ async function handleFileUpload(input) {
   }
 }
 
+function hideBothDocBadges() {
+  document.getElementById('doc-badge').style.display = 'none';
+  document.getElementById('orch-doc-badge').style.display = 'none';
+}
+
 function clearDocument() {
   documentContext = '';
-  const badge = document.getElementById('doc-badge');
-  badge.style.display = 'none';
+  hideBothDocBadges();
   document.getElementById('file-input').value = '';
+  document.getElementById('orch-file-input').value = '';
 }
 
 async function downloadDoc(format) {
   if (!currentOutput) return;
   const name = selectedAgent ? selectedAgent.name : 'Reporte';
+  await triggerDocDownload(currentOutput, format, name);
+}
+
+async function downloadOrchDoc(format) {
+  if (!currentOrchOutput) return;
+  await triggerDocDownload(currentOrchOutput, format, 'Pipeline');
+}
+
+async function triggerDocDownload(content, format, name) {
   try {
     const res = await fetch('/api/generate-doc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: currentOutput, format, filename: name }),
+      body: JSON.stringify({ content, format, filename: name }),
     });
     if (!res.ok) throw new Error('Error al generar el documento');
     const blob = await res.blob();
@@ -480,11 +523,16 @@ async function runOrchestration() {
   placeholder.style.display = 'none';
   resultsEl.innerHTML = '';
 
+  currentOrchOutput = '';
   try {
     const res = await fetch('/api/orchestrate/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steps: steps.map(s => ({ agent_id: s.agentId, task: s.task })), mode: pipelineMode }),
+      body: JSON.stringify({
+        steps: steps.map(s => ({ agent_id: s.agentId, task: s.task })),
+        mode: pipelineMode,
+        document_context: documentContext,
+      }),
     });
 
     const reader = res.body.getReader();
@@ -534,7 +582,6 @@ function handleOrchMessage(msg, container, steps) {
     container.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } else if (msg.type === 'step_result' || msg.type === 'parallel_result') {
-    const agent = msg.type === 'parallel_result' ? agents.find(a => a.name === msg.agent) : null;
     let el = document.getElementById(`orch-step-${msg.step}`);
 
     if (!el) {
@@ -555,12 +602,28 @@ function handleOrchMessage(msg, container, steps) {
     if (spinner) spinner.remove();
     const out = document.getElementById(`orch-output-${msg.step}`);
     if (out) out.textContent = msg.content;
+    // Accumulate all step outputs for download
+    currentOrchOutput += `--- Paso ${msg.step}: ${msg.agent} ---\n${msg.content}\n\n`;
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } else if (msg.type === 'done') {
     const done = document.createElement('div');
-    done.className = 'text-center text-green-400 text-sm font-medium py-2';
-    done.textContent = '✓ Pipeline completado';
+    done.className = 'text-center py-3';
+    done.innerHTML = `
+      <div class="text-green-400 text-sm font-medium mb-2">✓ Pipeline completado</div>
+      <div class="flex justify-center gap-2">
+        <button onclick="downloadOrchDoc('pdf')"
+          class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
+          style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
+          📄 Descargar PDF
+        </button>
+        <button onclick="downloadOrchDoc('docx')"
+          class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
+          style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
+          📝 Descargar Word
+        </button>
+      </div>`;
     container.appendChild(done);
+    done.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 }
 

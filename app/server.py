@@ -68,6 +68,7 @@ class OrchestrationStep(BaseModel):
 class OrchestrationRequest(BaseModel):
     steps: list[OrchestrationStep]
     mode: str = "sequential"  # sequential | parallel
+    document_context: str = ""  # injected into first step (sequential) or all steps (parallel)
 
 
 class DocRequest(BaseModel):
@@ -243,8 +244,12 @@ async def orchestrate_stream(req: OrchestrationRequest):
                 yield f"data: {header}\n\n"
 
                 user_content = step.task
+                if i == 0 and req.document_context:
+                    user_content = (
+                        f"Documento adjunto:\n{req.document_context[:8000]}\n\n---\n\nTarea:\n{step.task}"
+                    )
                 if context:
-                    user_content = f"Contexto del paso anterior:\n{context}\n\nTu tarea:\n{step.task}"
+                    user_content = f"Contexto del paso anterior:\n{context}\n\n{user_content}"
 
                 loop = asyncio.get_event_loop()
 
@@ -283,6 +288,11 @@ async def orchestrate_stream(req: OrchestrationRequest):
                 loop = asyncio.get_event_loop()
 
                 def run_sync():
+                    task_content = step.task
+                    if req.document_context:
+                        task_content = (
+                            f"Documento adjunto:\n{req.document_context[:8000]}\n\n---\n\nTarea:\n{step.task}"
+                        )
                     out = []
                     stream = groq_client.chat.completions.create(
                         model=MODEL,
@@ -290,7 +300,7 @@ async def orchestrate_stream(req: OrchestrationRequest):
                         stream=True,
                         messages=[
                             {"role": "system", "content": agent["system"]},
-                            {"role": "user", "content": step.task},
+                            {"role": "user", "content": task_content},
                         ],
                     )
                     for chunk in stream:
