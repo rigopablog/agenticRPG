@@ -139,6 +139,20 @@ AGENTS = [
         "description": "Control de stock y cadena de suministro",
         "system": "Eres un especialista en gestión de inventario. Controlas niveles de stock, generas órdenes de compra y optimizas la cadena de suministro. Responde en el idioma del usuario.",
     },
+    # --- DOCUMENTS ---
+    {
+        "id": "report_generator", "name": "Generador de Reportes", "category": "documents",
+        "icon": "📋", "color": "#0f766e",
+        "description": "Crea reportes estructurados a partir de datos o documentos",
+        "system": (
+            "Eres un experto en redacción de reportes profesionales. "
+            "Cuando el usuario te proporcione datos, texto o un documento, genera un reporte completo y bien estructurado con: "
+            "1) Resumen ejecutivo, 2) Hallazgos principales, 3) Análisis detallado por secciones, "
+            "4) Conclusiones y 5) Recomendaciones accionables. "
+            "Usa formato claro con encabezados, listas y secciones bien delimitadas. "
+            "Responde en el idioma del usuario."
+        ),
+    },
 ]
 
 AGENTS_BY_ID = {a["id"]: a for a in AGENTS}

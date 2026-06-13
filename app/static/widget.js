@@ -159,7 +159,7 @@
   header.innerHTML = `
     <div class="ah-logo">🤖</div>
     <span class="ah-title">Agents Hub</span>
-    <span class="ah-subtitle">23 agentes · Llama 3.3 70B</span>
+    <span class="ah-subtitle">24 agentes · Llama 3.3 70B</span>
     <button id="ah-close" title="Cerrar">✕</button>
   `;
 
