@@ -14,53 +14,114 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #1a1d27; }
   ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-  .output-box { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; min-height: 220px; padding: 1.25rem; font-family: monospace; font-size: .85rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .output-box { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; min-height: 160px; padding: 1rem; font-family: monospace; font-size: .82rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
   .step-card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; }
   .blink { animation: blink .8s step-end infinite; }
   @keyframes blink { 50% { opacity: 0; } }
-  .tab-active { background: #6366f1; color: white; }
+  .tab-active   { background: #6366f1; color: white; }
   .tab-inactive { background: #1e2235; color: #94a3b8; }
   .tab-inactive:hover { background: #252a3a; }
-  .badge { font-size: .65rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+  .badge { font-size: .62rem; padding: 2px 6px; border-radius: 20px; font-weight: 600; }
   textarea:focus, input:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
   .copy-btn { opacity: 0; transition: opacity .2s; }
   .output-box:hover .copy-btn { opacity: 1; }
-  .spinner { border: 3px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; width: 20px; height: 20px; animation: spin .7s linear infinite; }
+  .spinner { border: 3px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; width: 18px; height: 18px; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .lang-btn { font-size: .7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; border: none; transition: background .15s, color .15s; letter-spacing: .5px; }
+  .lang-btn { font-size: .68rem; font-weight: 700; padding: 3px 7px; border-radius: 6px; cursor: pointer; border: none; transition: background .15s, color .15s; letter-spacing: .5px; }
+
+  /* ── Mobile sidebar drawer ─────────────────────────────── */
+  #sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
+  }
+  #sidebar-overlay.open { display: block; }
+  #sidebar-drawer {
+    position: absolute; top: 0; left: 0; bottom: 0; width: 82vw; max-width: 300px;
+    background: #131620; overflow-y: auto; padding: .75rem;
+    transform: translateX(-100%); transition: transform .25s ease;
+    border-right: 1px solid #1e2235;
+  }
+  #sidebar-overlay.open #sidebar-drawer { transform: translateX(0); }
+
+  /* Desktop: static sidebar, no overlay */
+  @media (min-width: 640px) {
+    #sidebar-overlay { display: none !important; }
+    #sidebar-static  { display: flex !important; }
+    #hamburger-btn   { display: none !important; }
+    #back-btn        { display: none !important; }
+  }
+  @media (max-width: 639px) {
+    #sidebar-static  { display: none !important; }
+    #lang-switcher   { display: none !important; }
+  }
 </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
 <!-- HEADER -->
-<header class="flex items-center justify-between px-6 py-3 border-b border-gray-800" style="background:#131620">
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg" style="background:#6366f1">🤖</div>
-    <span class="font-bold text-lg tracking-tight">Agents Hub</span>
-    <span class="badge bg-indigo-900 text-indigo-300 ml-1" id="agent-count-badge">24 agents</span>
+<header class="flex items-center gap-2 px-3 py-2 border-b border-gray-800 flex-shrink-0" style="background:#131620">
+  <!-- Hamburger (mobile only) -->
+  <button id="hamburger-btn" onclick="openSidebar()"
+    class="text-gray-400 hover:text-white p-1.5 rounded-lg transition flex-shrink-0" style="background:#1e2235">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-base flex-shrink-0" style="background:#6366f1">🤖</div>
+    <span class="font-bold text-sm tracking-tight hidden sm:block">Agents Hub</span>
+    <span class="badge bg-indigo-900 text-indigo-300 hidden sm:inline" id="agent-count-badge">24</span>
   </div>
-  <div class="flex gap-2 items-center">
-    <button onclick="setTab('single')" id="tab-single" class="tab-active px-4 py-1.5 rounded-lg text-sm font-medium transition" data-i18n="tab_single"></button>
-    <button onclick="setTab('orchestration')" id="tab-orch" class="tab-inactive px-4 py-1.5 rounded-lg text-sm font-medium transition" data-i18n="tab_orch"></button>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 flex-1 justify-center sm:justify-start sm:ml-2 min-w-0">
+    <button onclick="setTab('single')" id="tab-single"
+      class="tab-active px-3 py-1.5 rounded-lg text-xs font-medium transition truncate" data-i18n="tab_single"></button>
+    <button onclick="setTab('orchestration')" id="tab-orch"
+      class="tab-inactive px-3 py-1.5 rounded-lg text-xs font-medium transition truncate" data-i18n="tab_orch"></button>
   </div>
-  <div class="flex items-center gap-3">
-    <div class="text-xs text-gray-500">Llama 3.3 70B · Groq</div>
-    <!-- Language switcher -->
-    <div class="flex gap-1 ml-2" style="background:#1e2235; border-radius:8px; padding:3px">
-      <button id="lang-es" onclick="setLang('es')" class="lang-btn tab-active">ES</button>
-      <button id="lang-en" onclick="setLang('en')" class="lang-btn tab-inactive">EN</button>
-    </div>
+
+  <!-- Language switcher (desktop only) -->
+  <div id="lang-switcher" class="flex gap-1 flex-shrink-0" style="background:#1e2235; border-radius:8px; padding:3px">
+    <button id="lang-es" onclick="setLang('es')" class="lang-btn tab-active">ES</button>
+    <button id="lang-en" onclick="setLang('en')" class="lang-btn tab-inactive">EN</button>
   </div>
 </header>
 
-<div class="flex flex-1 overflow-hidden">
+<!-- Mobile sidebar overlay -->
+<div id="sidebar-overlay" onclick="closeSidebarOnBackdrop(event)">
+  <div id="sidebar-drawer">
+    <div class="flex items-center justify-between mb-3">
+      <span class="font-semibold text-sm" data-i18n="cat_pick"></span>
+      <button onclick="closeSidebar()" class="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+    </div>
+    <input type="text" id="search-agents-mobile" oninput="filterAgents(this.value)"
+      class="w-full px-3 py-2 rounded-lg text-sm mb-3" style="background:#1e2235; border:1px solid #2d3148; color:#e2e8f0"
+      data-i18n-placeholder="search_placeholder" />
+    <div id="sidebar-tech-m" class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_tech"></p>
+      <div id="tech-agents-m" class="space-y-1"></div>
+    </div>
+    <div id="sidebar-biz-m" class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_biz"></p>
+      <div id="biz-agents-m" class="space-y-1"></div>
+    </div>
+    <div id="sidebar-docs-m">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_docs"></p>
+      <div id="docs-agents-m" class="space-y-1"></div>
+    </div>
+  </div>
+</div>
 
-  <!-- SIDEBAR -->
-  <aside class="w-72 flex-shrink-0 border-r border-gray-800 overflow-y-auto p-3" style="background:#131620">
+<div class="flex flex-1 overflow-hidden min-h-0">
+
+  <!-- SIDEBAR — desktop static -->
+  <aside id="sidebar-static" class="w-64 flex-shrink-0 border-r border-gray-800 overflow-y-auto p-3" style="background:#131620">
     <input type="text" id="search-agents" oninput="filterAgents(this.value)"
       class="w-full px-3 py-2 rounded-lg text-sm mb-3" style="background:#1e2235; border:1px solid #2d3148; color:#e2e8f0"
       data-i18n-placeholder="search_placeholder" />
-
     <div id="sidebar-tech" class="mb-4">
       <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_tech"></p>
       <div id="tech-agents" class="space-y-1"></div>
@@ -76,119 +137,120 @@
   </aside>
 
   <!-- MAIN CONTENT -->
-  <main class="flex-1 overflow-hidden flex flex-col">
+  <main class="flex-1 overflow-hidden flex flex-col min-w-0">
 
     <!-- SINGLE AGENT TAB -->
-    <div id="tab-single-content" class="flex-1 flex flex-col overflow-hidden p-5 gap-4">
-      <!-- Selected agent banner -->
-      <div id="agent-banner" class="hidden rounded-xl p-4 flex items-center gap-4" style="background:#1a1d27; border:1px solid #2d3148">
-        <div id="banner-icon" class="text-3xl w-12 h-12 flex items-center justify-center rounded-xl" style="background:#1e2235">🤖</div>
-        <div>
-          <div id="banner-name" class="font-semibold text-base"></div>
-          <div id="banner-desc" class="text-sm text-gray-400"></div>
+    <div id="tab-single-content" class="flex-1 flex flex-col overflow-hidden p-3 gap-3">
+
+      <!-- Agent banner / back btn -->
+      <div id="agent-banner" class="hidden rounded-xl p-3 flex items-center gap-3" style="background:#1a1d27; border:1px solid #2d3148">
+        <!-- Back to agent list (mobile) -->
+        <button id="back-btn" onclick="openSidebar()"
+          class="text-gray-400 hover:text-white flex-shrink-0 p-1 rounded-lg sm:hidden" style="background:#252a3a">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div id="banner-icon" class="text-2xl w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0" style="background:#1e2235">🤖</div>
+        <div class="flex-1 min-w-0">
+          <div id="banner-name" class="font-semibold text-sm truncate"></div>
+          <div id="banner-desc" class="text-xs text-gray-400 truncate"></div>
         </div>
-        <div class="ml-auto">
-          <button onclick="clearOutput()" class="text-xs text-gray-500 hover:text-gray-300 px-3 py-1 rounded-lg transition" style="background:#252a3a" data-i18n="btn_clear"></button>
-        </div>
+        <button onclick="clearOutput()" class="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded-lg flex-shrink-0 transition" style="background:#252a3a" data-i18n="btn_clear"></button>
       </div>
-      <div id="no-agent-msg" class="text-center text-gray-500 py-6 text-sm" data-i18n="no_agent"></div>
+      <div id="no-agent-msg" class="text-center text-gray-500 py-8 text-sm" data-i18n="no_agent"></div>
 
       <!-- Output -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto min-h-0">
         <div id="output" class="output-box relative" style="display:none">
           <div id="output-text"></div>
           <span id="cursor" class="blink hidden">▍</span>
-          <button onclick="copyOutput()" class="copy-btn absolute top-3 right-3 text-xs text-gray-400 hover:text-white px-2 py-1 rounded" style="background:#252a3a" data-i18n="btn_copy"></button>
+          <button onclick="copyOutput()" class="copy-btn absolute top-2 right-2 text-xs text-gray-400 hover:text-white px-2 py-1 rounded" style="background:#252a3a" data-i18n="btn_copy"></button>
         </div>
-        <!-- Download buttons -->
-        <div id="download-buttons" class="flex gap-2 mt-2" style="display:none">
+        <div id="download-buttons" class="flex gap-2 mt-2 flex-wrap" style="display:none">
           <button onclick="downloadDoc('pdf')"
-            class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
+            class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition hover:opacity-80"
             style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
             data-i18n="btn_pdf"></button>
           <button onclick="downloadDoc('docx')"
-            class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
+            class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition hover:opacity-80"
             style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
             data-i18n="btn_word"></button>
         </div>
-        <!-- History -->
         <div id="history" class="space-y-3 mt-3"></div>
       </div>
 
       <!-- Input area -->
-      <div id="input-area" class="hidden">
-        <!-- Document attachment row -->
+      <div id="input-area" class="hidden flex-shrink-0">
         <div class="flex items-center gap-2 mb-2 flex-wrap">
           <label for="file-input"
-            class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition hover:opacity-80"
+            class="text-xs flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition hover:opacity-80"
             style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
             data-i18n="btn_attach"></label>
           <input type="file" id="file-input" accept=".pdf,.docx" class="hidden" onchange="handleFileUpload(this)" />
-          <div id="doc-badge" class="hidden items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
+          <div id="doc-badge" class="hidden items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg"
             style="background:#1a1d27; border:1px solid #6366f1; color:#a5b4fc">
             <span id="doc-badge-name"></span>
             <button onclick="clearDocument()" class="text-gray-500 hover:text-red-400 ml-1" style="cursor:pointer">✕</button>
           </div>
           <div id="doc-loading" class="hidden items-center gap-1.5 text-xs text-gray-500">
-            <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
+            <div class="spinner" style="width:13px;height:13px;border-width:2px"></div>
             <span data-i18n="extracting"></span>
           </div>
         </div>
         <div class="flex gap-2 items-end">
           <textarea id="task-input" rows="3"
-            class="flex-1 rounded-xl px-4 py-3 text-sm resize-none"
+            class="flex-1 rounded-xl px-3 py-2.5 text-sm resize-none"
             style="background:#1a1d27; border:1px solid #2d3148; color:#e2e8f0"
             data-i18n-placeholder="task_placeholder"
             onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))runAgent()"></textarea>
           <button onclick="runAgent()" id="run-btn"
-            class="px-5 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-2"
-            style="background:#6366f1; color:white; min-width:100px">
+            class="px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-1.5 flex-shrink-0"
+            style="background:#6366f1; color:white; min-width:80px">
             <span id="run-btn-text" data-i18n="btn_run"></span>
-            <span id="run-spinner" class="spinner hidden"></span>
+            <span id="run-spinner" class="spinner hidden" style="width:14px;height:14px;border-width:2px"></span>
           </button>
         </div>
-        <p class="text-xs text-gray-600 mt-1 ml-1" data-i18n="hint_shortcut"></p>
+        <p class="text-xs text-gray-600 mt-1 ml-1 hidden sm:block" data-i18n="hint_shortcut"></p>
       </div>
     </div>
 
     <!-- ORCHESTRATION TAB -->
-    <div id="tab-orch-content" class="flex-1 flex overflow-hidden" style="display:none">
+    <div id="tab-orch-content" class="flex-1 flex overflow-hidden min-h-0" style="display:none">
 
       <!-- Pipeline builder -->
-      <div class="w-80 flex-shrink-0 border-r border-gray-800 flex flex-col p-4 gap-3" style="background:#131620">
+      <div class="w-64 flex-shrink-0 border-r border-gray-800 flex flex-col p-3 gap-3" style="background:#131620; min-width:200px">
         <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-sm" data-i18n="pipeline_title"></h2>
+          <h2 class="font-semibold text-xs" data-i18n="pipeline_title"></h2>
           <div class="flex gap-1">
             <button onclick="setPipelineMode('sequential')" id="btn-seq"
-              class="text-xs px-3 py-1 rounded-lg tab-active transition" data-i18n="btn_sequential"></button>
+              class="text-xs px-2 py-1 rounded-lg tab-active transition" data-i18n="btn_sequential"></button>
             <button onclick="setPipelineMode('parallel')" id="btn-par"
-              class="text-xs px-3 py-1 rounded-lg tab-inactive transition" data-i18n="btn_parallel"></button>
+              class="text-xs px-2 py-1 rounded-lg tab-inactive transition" data-i18n="btn_parallel"></button>
           </div>
         </div>
 
         <p class="text-xs text-gray-500" id="mode-desc" data-i18n="mode_seq_desc"></p>
 
         <div id="pipeline-steps" class="space-y-2 overflow-y-auto flex-1"></div>
-
-        <div id="pipeline-empty" class="text-center text-gray-600 text-xs py-4" data-i18n="pipeline_empty"></div>
+        <div id="pipeline-empty" class="text-center text-gray-600 text-xs py-3" data-i18n="pipeline_empty"></div>
 
         <button onclick="clearPipeline()" class="text-xs text-gray-500 hover:text-red-400 transition text-left" data-i18n="btn_clear_pipeline"></button>
 
-        <!-- Document attachment for orchestration -->
-        <div class="border-t pt-3 space-y-2" style="border-color:#1e2235">
+        <!-- Doc attachment -->
+        <div class="border-t pt-2" style="border-color:#1e2235">
           <div class="flex items-center gap-2 flex-wrap">
             <label for="orch-file-input"
-              class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition hover:opacity-80"
+              class="text-xs flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition hover:opacity-80"
               style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
               data-i18n="btn_attach"></label>
-            <input type="file" id="orch-file-input" accept=".pdf,.docx" class="hidden"
-              onchange="handleFileUpload(this)" />
-            <div id="orch-doc-badge" class="hidden items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
+            <input type="file" id="orch-file-input" accept=".pdf,.docx" class="hidden" onchange="handleFileUpload(this)" />
+            <div id="orch-doc-badge" class="hidden items-center gap-1 text-xs px-2 py-1 rounded-lg"
               style="background:#1a1d27; border:1px solid #6366f1; color:#a5b4fc">
               <span id="orch-doc-badge-name"></span>
               <button onclick="clearDocument()" class="text-gray-500 hover:text-red-400 ml-1" style="cursor:pointer">✕</button>
             </div>
-            <div id="orch-doc-loading" class="hidden items-center gap-1.5 text-xs text-gray-500">
+            <div id="orch-doc-loading" class="hidden items-center gap-1 text-xs text-gray-500">
               <div class="spinner" style="width:12px;height:12px;border-width:2px"></div>
               <span data-i18n="extracting_short"></span>
             </div>
@@ -196,16 +258,16 @@
         </div>
 
         <button onclick="runOrchestration()" id="orch-run-btn"
-          class="w-full py-2.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2"
+          class="w-full py-2 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-1.5"
           style="background:#6366f1; color:white">
           <span id="orch-btn-text" data-i18n="btn_run_pipeline"></span>
-          <span id="orch-spinner" class="spinner hidden"></span>
+          <span id="orch-spinner" class="spinner hidden" style="width:13px;height:13px;border-width:2px"></span>
         </button>
       </div>
 
       <!-- Orchestration output -->
-      <div class="flex-1 overflow-y-auto p-5">
-        <div id="orch-placeholder" class="text-center text-gray-600 text-sm pt-10" data-i18n="orch_placeholder"></div>
+      <div class="flex-1 overflow-y-auto p-4 min-w-0">
+        <div id="orch-placeholder" class="text-center text-gray-600 text-sm pt-8" data-i18n="orch_placeholder"></div>
         <div id="orch-results" class="space-y-4" style="display:none"></div>
       </div>
     </div>
@@ -217,110 +279,102 @@
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
   es: {
-    tab_single:        'Agente Individual',
-    tab_orch:          'Orquestación',
-    search_placeholder:'Buscar agente...',
-    cat_tech:          'Tech',
-    cat_biz:           'Small Business',
-    cat_docs:          'Documentos',
-    no_agent:          '← Selecciona un agente del panel izquierdo',
-    btn_clear:         'Limpiar',
-    btn_copy:          'Copiar',
-    task_placeholder:  'Describe la tarea para este agente...',
-    btn_run:           'Ejecutar',
-    btn_running:       'Ejecutando...',
-    hint_shortcut:     'Ctrl+Enter para ejecutar',
-    btn_attach:        '📎 Adjuntar PDF / Word',
-    extracting:        'Extrayendo texto...',
-    extracting_short:  'Extrayendo...',
-    btn_pdf:           '📄 Descargar PDF',
-    btn_word:          '📝 Descargar Word',
-    copied:            'Copiado al portapapeles',
-    pipeline_title:    'Pipeline',
-    btn_sequential:    'Secuencial',
-    btn_parallel:      'Paralelo',
-    mode_seq_desc:     'Los agentes se ejecutan en orden, pasando el resultado al siguiente.',
-    mode_par_desc:     'Todos los agentes reciben la misma entrada y corren en paralelo.',
-    pipeline_empty:    'Haz clic en los agentes del panel izquierdo para agregarlos al pipeline',
-    btn_clear_pipeline:'Limpiar pipeline',
-    btn_run_pipeline:  '▶ Ejecutar Pipeline',
+    tab_single:          'Agente Individual',
+    tab_orch:            'Orquestación',
+    search_placeholder:  'Buscar agente...',
+    cat_pick:            'Elige un agente',
+    cat_tech:            'Tech',
+    cat_biz:             'Small Business',
+    cat_docs:            'Documentos',
+    no_agent:            '← Selecciona un agente',
+    btn_clear:           'Limpiar',
+    btn_copy:            'Copiar',
+    task_placeholder:    'Describe la tarea para este agente...',
+    btn_run:             'Ejecutar',
+    btn_running:         'Ejecutando...',
+    hint_shortcut:       'Ctrl+Enter para ejecutar',
+    btn_attach:          '📎 PDF / Word',
+    extracting:          'Extrayendo...',
+    extracting_short:    'Extrayendo...',
+    btn_pdf:             '📄 PDF',
+    btn_word:            '📝 Word',
+    copied:              'Copiado al portapapeles',
+    pipeline_title:      'Pipeline',
+    btn_sequential:      'Secuencial',
+    btn_parallel:        'Paralelo',
+    mode_seq_desc:       'Los agentes se ejecutan en orden, pasando el resultado al siguiente.',
+    mode_par_desc:       'Todos los agentes reciben la misma entrada y corren en paralelo.',
+    pipeline_empty:      'Toca los agentes para agregarlos al pipeline',
+    btn_clear_pipeline:  'Limpiar pipeline',
+    btn_run_pipeline:    '▶ Ejecutar',
     btn_running_pipeline:'Ejecutando...',
-    orch_placeholder:  'Arma tu pipeline y ejecuta para ver los resultados aquí',
-    step_placeholder:  'Tarea para este agente...',
-    step_label:        'Paso',
-    pipeline_done:     '✓ Pipeline completado',
-    error_doc:         'Error al procesar el documento: ',
-    error_tasks:       'Agrega tareas a los pasos del pipeline.',
-    error_doc_gen:     'Error al generar el documento',
-    agents_label:      'agentes',
-    running_label:     'Ejecutando...',
+    orch_placeholder:    'Arma tu pipeline y ejecuta para ver los resultados aquí',
+    step_placeholder:    'Tarea para este agente...',
+    step_label:          'Paso',
+    pipeline_done:       '✓ Pipeline completado',
+    error_doc:           'Error al procesar: ',
+    error_tasks:         'Agrega tareas a los pasos del pipeline.',
+    error_doc_gen:       'Error al generar el documento',
+    agents_label:        'agentes',
+    running_label:       'Ejecutando...',
   },
   en: {
-    tab_single:        'Single Agent',
-    tab_orch:          'Orchestration',
-    search_placeholder:'Search agent...',
-    cat_tech:          'Tech',
-    cat_biz:           'Small Business',
-    cat_docs:          'Documents',
-    no_agent:          '← Select an agent from the left panel',
-    btn_clear:         'Clear',
-    btn_copy:          'Copy',
-    task_placeholder:  'Describe the task for this agent...',
-    btn_run:           'Run',
-    btn_running:       'Running...',
-    hint_shortcut:     'Ctrl+Enter to run',
-    btn_attach:        '📎 Attach PDF / Word',
-    extracting:        'Extracting text...',
-    extracting_short:  'Extracting...',
-    btn_pdf:           '📄 Download PDF',
-    btn_word:          '📝 Download Word',
-    copied:            'Copied to clipboard',
-    pipeline_title:    'Pipeline',
-    btn_sequential:    'Sequential',
-    btn_parallel:      'Parallel',
-    mode_seq_desc:     'Agents run in order, passing the result to the next one.',
-    mode_par_desc:     'All agents receive the same input and run in parallel.',
-    pipeline_empty:    'Click agents from the left panel to add them to the pipeline',
-    btn_clear_pipeline:'Clear pipeline',
-    btn_run_pipeline:  '▶ Run Pipeline',
+    tab_single:          'Single Agent',
+    tab_orch:            'Orchestration',
+    search_placeholder:  'Search agent...',
+    cat_pick:            'Choose an agent',
+    cat_tech:            'Tech',
+    cat_biz:             'Small Business',
+    cat_docs:            'Documents',
+    no_agent:            '← Select an agent',
+    btn_clear:           'Clear',
+    btn_copy:            'Copy',
+    task_placeholder:    'Describe the task for this agent...',
+    btn_run:             'Run',
+    btn_running:         'Running...',
+    hint_shortcut:       'Ctrl+Enter to run',
+    btn_attach:          '📎 PDF / Word',
+    extracting:          'Extracting...',
+    extracting_short:    'Extracting...',
+    btn_pdf:             '📄 PDF',
+    btn_word:            '📝 Word',
+    copied:              'Copied to clipboard',
+    pipeline_title:      'Pipeline',
+    btn_sequential:      'Sequential',
+    btn_parallel:        'Parallel',
+    mode_seq_desc:       'Agents run in order, passing the result to the next one.',
+    mode_par_desc:       'All agents receive the same input and run in parallel.',
+    pipeline_empty:      'Tap agents to add them to the pipeline',
+    btn_clear_pipeline:  'Clear pipeline',
+    btn_run_pipeline:    '▶ Run',
     btn_running_pipeline:'Running...',
-    orch_placeholder:  'Build your pipeline and run to see results here',
-    step_placeholder:  'Task for this agent...',
-    step_label:        'Step',
-    pipeline_done:     '✓ Pipeline completed',
-    error_doc:         'Error processing document: ',
-    error_tasks:       'Add tasks to the pipeline steps.',
-    error_doc_gen:     'Error generating document',
-    agents_label:      'agents',
-    running_label:     'Running...',
+    orch_placeholder:    'Build your pipeline and run to see results here',
+    step_placeholder:    'Task for this agent...',
+    step_label:          'Step',
+    pipeline_done:       '✓ Pipeline completed',
+    error_doc:           'Error processing: ',
+    error_tasks:         'Add tasks to the pipeline steps.',
+    error_doc_gen:       'Error generating document',
+    agents_label:        'agents',
+    running_label:       'Running...',
   },
 };
 
 let lang = 'es';
-
-function t(key) {
-  return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.es[key] || key;
-}
+function t(key) { return (TRANSLATIONS[lang]||{})[key] || TRANSLATIONS.es[key] || key; }
 
 function setLang(l) {
   lang = l;
   document.documentElement.lang = l;
-  document.getElementById('lang-es').className = `lang-btn ${l === 'es' ? 'tab-active' : 'tab-inactive'}`;
-  document.getElementById('lang-en').className = `lang-btn ${l === 'en' ? 'tab-active' : 'tab-inactive'}`;
+  document.getElementById('lang-es').className = `lang-btn ${l==='es'?'tab-active':'tab-inactive'}`;
+  document.getElementById('lang-en').className = `lang-btn ${l==='en'?'tab-active':'tab-inactive'}`;
   applyTranslations();
 }
 
 function applyTranslations() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    el.placeholder = t(el.dataset.i18nPlaceholder);
-  });
-  // Agent count badge
-  const count = agents.length || 24;
-  document.getElementById('agent-count-badge').textContent = `${count} ${t('agents_label')}`;
-  // Dynamic state-dependent strings
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.getElementById('agent-count-badge').textContent = `${agents.length||24} ${t('agents_label')}`;
   if (!isRunning) {
     document.getElementById('run-btn-text').textContent = t('btn_run');
     document.getElementById('orch-btn-text').textContent = t('btn_run_pipeline');
@@ -332,42 +386,49 @@ function applyTranslations() {
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let agents = [];
-let selectedAgent = null;
-let currentTab = 'single';
-let pipeline = [];
-let pipelineMode = 'sequential';
-let isRunning = false;
-let documentContext = '';
-let currentOutput = '';
-let currentOrchOutput = '';
+let agents = [], selectedAgent = null, currentTab = 'single';
+let pipeline = [], pipelineMode = 'sequential', isRunning = false;
+let documentContext = '', currentOutput = '', currentOrchOutput = '';
 
 async function init() {
   const res = await fetch('/api/agents');
   agents = await res.json();
   applyTranslations();
-  renderSidebar();
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
+// ── Mobile sidebar ────────────────────────────────────────────────────────────
+function openSidebar()  { document.getElementById('sidebar-overlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar-overlay').classList.remove('open'); }
+function closeSidebarOnBackdrop(e) { if (e.target === document.getElementById('sidebar-overlay')) closeSidebar(); }
+
+// ── Sidebar render ────────────────────────────────────────────────────────────
 function renderSidebar(filter = '') {
   const f = filter.toLowerCase();
-  const tech = agents.filter(a => a.category === 'tech' && (!f || a.name.toLowerCase().includes(f)));
-  const biz  = agents.filter(a => a.category === 'business' && (!f || a.name.toLowerCase().includes(f)));
+  const tech = agents.filter(a => a.category === 'tech'      && (!f || a.name.toLowerCase().includes(f)));
+  const biz  = agents.filter(a => a.category === 'business'  && (!f || a.name.toLowerCase().includes(f)));
   const docs = agents.filter(a => a.category === 'documents' && (!f || a.name.toLowerCase().includes(f)));
+
+  // Desktop sidebar
   document.getElementById('tech-agents').innerHTML = tech.map(agentCard).join('');
   document.getElementById('biz-agents').innerHTML  = biz.map(agentCard).join('');
   document.getElementById('docs-agents').innerHTML = docs.map(agentCard).join('');
   document.getElementById('sidebar-docs').style.display = docs.length ? 'block' : 'none';
+
+  // Mobile drawer
+  document.getElementById('tech-agents-m').innerHTML = tech.map(a => agentCard(a, true)).join('');
+  document.getElementById('biz-agents-m').innerHTML  = biz.map(a => agentCard(a, true)).join('');
+  document.getElementById('docs-agents-m').innerHTML = docs.map(a => agentCard(a, true)).join('');
+  document.getElementById('sidebar-docs-m').style.display = docs.length ? 'block' : 'none';
 }
 
-function agentCard(a) {
+function agentCard(a, mobile = false) {
   const inPipeline = pipeline.some(s => s.agentId === a.id) && currentTab === 'orchestration';
+  const suffix = mobile ? '-m' : '';
   return `
-  <div class="agent-card rounded-lg px-3 py-2 flex items-center gap-2 ${inPipeline ? 'in-pipeline' : ''}"
+  <div class="agent-card rounded-lg px-3 py-2 flex items-center gap-2 ${inPipeline?'in-pipeline':''}"
        style="background:#1a1d27; --card-color:${a.color}"
-       id="card-${a.id}" onclick="handleCardClick('${a.id}')">
-    <span class="text-lg w-7 text-center">${a.icon}</span>
+       id="card${suffix}-${a.id}" onclick="handleCardClick('${a.id}')">
+    <span class="text-base w-6 text-center">${a.icon}</span>
     <div class="flex-1 min-w-0">
       <div class="text-sm font-medium truncate">${a.name}</div>
       <div class="text-xs text-gray-500 truncate">${a.description}</div>
@@ -377,15 +438,14 @@ function agentCard(a) {
 }
 
 function handleCardClick(agentId) {
-  if (currentTab === 'single') selectAgent(agentId);
-  else addToPipeline(agentId);
+  if (currentTab === 'single') { selectAgent(agentId); closeSidebar(); }
+  else { addToPipeline(agentId); closeSidebar(); }
 }
 
 function selectAgent(agentId) {
   selectedAgent = agents.find(a => a.id === agentId);
   document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
-  const card = document.getElementById(`card-${agentId}`);
-  if (card) card.classList.add('selected');
+  ['card-','card-m-'].forEach(p => { const el = document.getElementById(p+agentId); if (el) el.classList.add('selected'); });
 
   document.getElementById('agent-banner').classList.remove('hidden');
   document.getElementById('no-agent-msg').style.display = 'none';
@@ -402,80 +462,55 @@ async function runAgent() {
   if (!selectedAgent || isRunning) return;
   const task = document.getElementById('task-input').value.trim();
   if (!task) return;
+  isRunning = true; setRunBtnState(true);
 
-  isRunning = true;
-  setRunBtnState(true);
-
-  const outputBox = document.getElementById('output');
+  const outputBox  = document.getElementById('output');
   const outputText = document.getElementById('output-text');
-  const cursor = document.getElementById('cursor');
-
+  const cursor     = document.getElementById('cursor');
   outputBox.style.display = 'block';
-  outputText.textContent = '';
+  outputText.textContent  = '';
   cursor.classList.remove('hidden');
 
   try {
     const res = await fetch('/api/run/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ agent_id: selectedAgent.id, task, document_context: documentContext }),
     });
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullText = '';
-
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buffer = '', fullText = '';
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+      const lines = buffer.split('\n'); buffer = lines.pop();
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
-              fullText += parsed.content;
-              outputText.textContent = fullText;
-              outputBox.scrollTop = outputBox.scrollHeight;
-            }
-          } catch {}
-        }
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') break;
+        try { const p = JSON.parse(data); if (p.content) { fullText += p.content; outputText.textContent = fullText; outputBox.scrollTop = outputBox.scrollHeight; } } catch {}
       }
     }
-
     cursor.classList.add('hidden');
     currentOutput = fullText;
     document.getElementById('download-buttons').style.display = 'flex';
     addToHistory(selectedAgent, task, fullText);
     document.getElementById('task-input').value = '';
-  } catch (e) {
-    outputText.textContent = 'Error: ' + e.message;
-  } finally {
-    cursor.classList.add('hidden');
-    isRunning = false;
-    setRunBtnState(false);
-  }
+  } catch (e) { outputText.textContent = 'Error: ' + e.message; }
+  finally { cursor.classList.add('hidden'); isRunning = false; setRunBtnState(false); }
 }
 
 function addToHistory(agent, task, result) {
-  const history = document.getElementById('history');
   const item = document.createElement('div');
-  item.className = 'rounded-xl p-4';
-  item.style = 'background:#1a1d27; border:1px solid #2d3148';
+  item.className = 'rounded-xl p-3'; item.style = 'background:#1a1d27; border:1px solid #2d3148';
   item.innerHTML = `
     <div class="flex items-center gap-2 mb-2">
       <span>${agent.icon}</span>
       <span class="text-xs font-medium" style="color:${agent.color}">${agent.name}</span>
       <span class="text-xs text-gray-600 ml-auto">${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs text-gray-400 mb-2 italic truncate">"${escapeHtml(task)}"</div>
-    <div class="text-sm text-gray-300" style="white-space:pre-wrap;max-height:200px;overflow-y:auto">${escapeHtml(result)}</div>`;
-  history.prepend(item);
+    <div class="text-xs text-gray-400 mb-1 italic truncate">"${escapeHtml(task)}"</div>
+    <div class="text-sm text-gray-300" style="white-space:pre-wrap;max-height:180px;overflow-y:auto">${escapeHtml(result)}</div>`;
+  document.getElementById('history').prepend(item);
 }
 
 function clearOutput() {
@@ -487,261 +522,178 @@ function clearOutput() {
 }
 
 function copyOutput() {
-  const text = document.getElementById('output-text').textContent;
-  navigator.clipboard.writeText(text).then(() => alert(t('copied')));
+  navigator.clipboard.writeText(document.getElementById('output-text').textContent)
+    .then(() => alert(t('copied')));
 }
 
 // ── Document upload ───────────────────────────────────────────────────────────
 async function handleFileUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-
+  const file = input.files[0]; if (!file) return;
   const isOrch = input.id === 'orch-file-input';
   const loading = document.getElementById(isOrch ? 'orch-doc-loading' : 'doc-loading');
-  loading.style.display = 'flex';
-  hideBothDocBadges();
-
-  const formData = new FormData();
-  formData.append('file', file);
-
+  loading.style.display = 'flex'; hideBothDocBadges();
+  const formData = new FormData(); formData.append('file', file);
   try {
     const res = await fetch('/api/upload', { method: 'POST', body: formData });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || res.statusText);
-    }
+    if (!res.ok) { const e = await res.json().catch(()=>({detail:res.statusText})); throw new Error(e.detail||res.statusText); }
     const data = await res.json();
     documentContext = data.text;
-    const kb = Math.round(data.chars / 100) / 10;
-    const label = `📎 ${file.name} · ${kb}k chars`;
+    const label = `📎 ${file.name} · ${Math.round(data.chars/100)/10}k`;
     document.getElementById('doc-badge-name').textContent = label;
     document.getElementById('doc-badge').style.display = 'flex';
     document.getElementById('orch-doc-badge-name').textContent = label;
     document.getElementById('orch-doc-badge').style.display = 'flex';
-  } catch (e) {
-    alert(t('error_doc') + e.message);
-    documentContext = '';
-  } finally {
-    loading.style.display = 'none';
-    input.value = '';
-  }
+  } catch (e) { alert(t('error_doc') + e.message); documentContext = ''; }
+  finally { loading.style.display = 'none'; input.value = ''; }
 }
 
 function hideBothDocBadges() {
   document.getElementById('doc-badge').style.display = 'none';
   document.getElementById('orch-doc-badge').style.display = 'none';
 }
-
 function clearDocument() {
-  documentContext = '';
-  hideBothDocBadges();
+  documentContext = ''; hideBothDocBadges();
   document.getElementById('file-input').value = '';
   document.getElementById('orch-file-input').value = '';
 }
 
-// ── Document download ─────────────────────────────────────────────────────────
-async function downloadDoc(format) {
-  if (!currentOutput) return;
-  const name = selectedAgent ? selectedAgent.name : 'Report';
-  await triggerDocDownload(currentOutput, format, name);
-}
-
-async function downloadOrchDoc(format) {
-  if (!currentOrchOutput) return;
-  await triggerDocDownload(currentOrchOutput, format, 'Pipeline');
-}
+// ── Download ──────────────────────────────────────────────────────────────────
+async function downloadDoc(fmt)     { if (currentOutput)     await triggerDocDownload(currentOutput,     fmt, selectedAgent?.name||'Report'); }
+async function downloadOrchDoc(fmt) { if (currentOrchOutput) await triggerDocDownload(currentOrchOutput, fmt, 'Pipeline'); }
 
 async function triggerDocDownload(content, format, name) {
   try {
     const res = await fetch('/api/generate-doc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ content, format, filename: name }),
     });
     if (!res.ok) throw new Error(t('error_doc_gen'));
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name}.${format}`;
-    a.click();
+    const blob = await res.blob(), url = URL.createObjectURL(blob);
+    Object.assign(document.createElement('a'), { href:url, download:`${name}.${format}` }).click();
     URL.revokeObjectURL(url);
-  } catch (e) {
-    alert(e.message);
-  }
+  } catch (e) { alert(e.message); }
 }
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
-function addToPipeline(agentId) {
-  if (!agents.find(a => a.id === agentId)) return;
-  pipeline.push({ agentId, task: '' });
-  renderPipeline();
-}
-
-function removeFromPipeline(idx) {
-  pipeline.splice(idx, 1);
-  renderPipeline();
-}
+function addToPipeline(agentId) { if (agents.find(a=>a.id===agentId)) { pipeline.push({agentId, task:''}); renderPipeline(); } }
+function removeFromPipeline(idx) { pipeline.splice(idx,1); renderPipeline(); }
+function clearPipeline() { pipeline = []; renderPipeline(); }
 
 function renderPipeline() {
-  const container = document.getElementById('pipeline-steps');
   const empty = document.getElementById('pipeline-empty');
   empty.style.display = pipeline.length ? 'none' : 'block';
-
-  container.innerHTML = pipeline.map((step, idx) => {
-    const agent = agents.find(a => a.id === step.agentId);
-    if (!agent) return '';
+  document.getElementById('pipeline-steps').innerHTML = pipeline.map((step, idx) => {
+    const agent = agents.find(a => a.id === step.agentId); if (!agent) return '';
     return `
-    <div class="step-card p-3 space-y-2">
+    <div class="step-card p-2.5 space-y-1.5">
       <div class="flex items-center gap-2">
-        <span class="text-sm w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background:${agent.color}">${idx+1}</span>
-        <span class="text-sm">${agent.icon} ${agent.name}</span>
-        <button onclick="removeFromPipeline(${idx})" class="ml-auto text-gray-600 hover:text-red-400 text-xs">✕</button>
+        <span class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:${agent.color}">${idx+1}</span>
+        <span class="text-xs truncate">${agent.icon} ${agent.name}</span>
+        <button onclick="removeFromPipeline(${idx})" class="ml-auto text-gray-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
       </div>
       <textarea rows="2" placeholder="${escapeHtml(t('step_placeholder'))}"
-        class="w-full px-2 py-1.5 rounded-lg text-xs resize-none"
+        class="w-full px-2 py-1 rounded-lg text-xs resize-none"
         style="background:#252a3a; border:1px solid #374151; color:#e2e8f0"
         oninput="pipeline[${idx}].task=this.value">${escapeHtml(step.task)}</textarea>
     </div>`;
   }).join('');
-
   renderSidebar();
-}
-
-function clearPipeline() {
-  pipeline = [];
-  renderPipeline();
 }
 
 function setPipelineMode(mode) {
   pipelineMode = mode;
-  document.getElementById('btn-seq').className = `text-xs px-3 py-1 rounded-lg transition ${mode==='sequential'?'tab-active':'tab-inactive'}`;
-  document.getElementById('btn-par').className  = `text-xs px-3 py-1 rounded-lg transition ${mode==='parallel'?'tab-active':'tab-inactive'}`;
+  document.getElementById('btn-seq').className = `text-xs px-2 py-1 rounded-lg transition ${mode==='sequential'?'tab-active':'tab-inactive'}`;
+  document.getElementById('btn-par').className  = `text-xs px-2 py-1 rounded-lg transition ${mode==='parallel'?'tab-active':'tab-inactive'}`;
   document.getElementById('mode-desc').textContent = mode === 'sequential' ? t('mode_seq_desc') : t('mode_par_desc');
 }
 
 async function runOrchestration() {
-  if (isRunning || pipeline.length === 0) return;
+  if (isRunning || !pipeline.length) return;
   const steps = pipeline.filter(s => s.task.trim());
-  if (steps.length === 0) { alert(t('error_tasks')); return; }
-
+  if (!steps.length) { alert(t('error_tasks')); return; }
   isRunning = true;
   document.getElementById('orch-btn-text').textContent = t('btn_running_pipeline');
   document.getElementById('orch-spinner').classList.remove('hidden');
-
   const resultsEl = document.getElementById('orch-results');
-  const placeholder = document.getElementById('orch-placeholder');
   resultsEl.style.display = 'block';
-  placeholder.style.display = 'none';
-  resultsEl.innerHTML = '';
-  currentOrchOutput = '';
-
+  document.getElementById('orch-placeholder').style.display = 'none';
+  resultsEl.innerHTML = ''; currentOrchOutput = '';
   try {
     const res = await fetch('/api/orchestrate/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        steps: steps.map(s => ({ agent_id: s.agentId, task: s.task })),
-        mode: pipelineMode,
-        document_context: documentContext,
-      }),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ steps: steps.map(s=>({agent_id:s.agentId,task:s.task})), mode:pipelineMode, document_context:documentContext }),
     });
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
+    const reader = res.body.getReader(), decoder = new TextDecoder();
     let buffer = '';
-
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+      const { done, value } = await reader.read(); if (done) break;
+      buffer += decoder.decode(value, { stream:true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         try { handleOrchMessage(JSON.parse(line.slice(6)), resultsEl, steps); } catch {}
       }
     }
-  } catch (e) {
-    resultsEl.innerHTML = `<div class="text-red-400 text-sm">Error: ${escapeHtml(e.message)}</div>`;
-  } finally {
-    isRunning = false;
-    document.getElementById('orch-btn-text').textContent = t('btn_run_pipeline');
-    document.getElementById('orch-spinner').classList.add('hidden');
-  }
+  } catch (e) { resultsEl.innerHTML = `<div class="text-red-400 text-sm">Error: ${escapeHtml(e.message)}</div>`; }
+  finally { isRunning=false; document.getElementById('orch-btn-text').textContent=t('btn_run_pipeline'); document.getElementById('orch-spinner').classList.add('hidden'); }
 }
 
 function handleOrchMessage(msg, container, steps) {
   if (msg.type === 'step_start') {
     const el = document.createElement('div');
-    el.id = `orch-step-${msg.step}`;
-    el.className = 'rounded-xl p-4';
+    el.id = `orch-step-${msg.step}`; el.className = 'rounded-xl p-3';
     el.style = 'background:#1a1d27; border:1px solid #2d3148';
     el.innerHTML = `
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-lg">${msg.icon}</span>
-        <span class="font-medium text-sm">${escapeHtml(msg.agent)}</span>
+      <div class="flex items-center gap-2 mb-2">
+        <span>${msg.icon}</span><span class="font-medium text-sm">${escapeHtml(msg.agent)}</span>
         <span class="badge bg-indigo-900 text-indigo-300">${t('step_label')} ${msg.step}/${msg.total}</span>
-        <div class="spinner ml-auto"></div>
+        <div class="spinner ml-auto" style="width:14px;height:14px;border-width:2px"></div>
       </div>
-      <div class="text-xs text-gray-500 italic mb-2">"${escapeHtml(steps[msg.step-1]?.task || '')}"</div>
-      <div class="output-box text-xs" id="orch-output-${msg.step}">${t('running_label')}</div>`;
-    container.appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      <div class="text-xs text-gray-500 italic mb-2">"${escapeHtml(steps[msg.step-1]?.task||'')}"</div>
+      <div class="output-box text-xs" id="orch-output-${msg.step}" style="min-height:60px">${t('running_label')}</div>`;
+    container.appendChild(el); el.scrollIntoView({ behavior:'smooth', block:'end' });
   } else if (msg.type === 'step_result' || msg.type === 'parallel_result') {
     let el = document.getElementById(`orch-step-${msg.step}`);
     if (!el) {
-      el = document.createElement('div');
-      el.id = `orch-step-${msg.step}`;
-      el.className = 'rounded-xl p-4';
-      el.style = 'background:#1a1d27; border:1px solid #2d3148';
-      el.innerHTML = `
-        <div class="flex items-center gap-2 mb-3">
-          <span class="text-lg">${msg.icon || '🤖'}</span>
-          <span class="font-medium text-sm">${escapeHtml(msg.agent)}</span>
-        </div>
-        <div class="output-box text-xs" id="orch-output-${msg.step}"></div>`;
+      el = document.createElement('div'); el.id=`orch-step-${msg.step}`; el.className='rounded-xl p-3';
+      el.style='background:#1a1d27; border:1px solid #2d3148';
+      el.innerHTML=`<div class="flex items-center gap-2 mb-2"><span>${msg.icon||'🤖'}</span><span class="font-medium text-sm">${escapeHtml(msg.agent)}</span></div><div class="output-box text-xs" id="orch-output-${msg.step}" style="min-height:60px"></div>`;
       container.appendChild(el);
     }
-    const spinner = el.querySelector('.spinner');
-    if (spinner) spinner.remove();
+    el.querySelector('.spinner')?.remove();
     const out = document.getElementById(`orch-output-${msg.step}`);
     if (out) out.textContent = msg.content;
     currentOrchOutput += `--- ${t('step_label')} ${msg.step}: ${msg.agent} ---\n${msg.content}\n\n`;
-    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    el.scrollIntoView({ behavior:'smooth', block:'end' });
   } else if (msg.type === 'done') {
     const done = document.createElement('div');
     done.className = 'text-center py-3';
     done.innerHTML = `
       <div class="text-green-400 text-sm font-medium mb-2">${t('pipeline_done')}</div>
       <div class="flex justify-center gap-2">
-        <button onclick="downloadOrchDoc('pdf')"
-          class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
-          style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-          ${t('btn_pdf')}
-        </button>
-        <button onclick="downloadOrchDoc('docx')"
-          class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
-          style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-          ${t('btn_word')}
-        </button>
+        <button onclick="downloadOrchDoc('pdf')" class="text-xs px-3 py-1.5 rounded-lg transition hover:opacity-80" style="background:#1e2235;color:#94a3b8;border:1px solid #2d3148;cursor:pointer">${t('btn_pdf')}</button>
+        <button onclick="downloadOrchDoc('docx')" class="text-xs px-3 py-1.5 rounded-lg transition hover:opacity-80" style="background:#1e2235;color:#94a3b8;border:1px solid #2d3148;cursor:pointer">${t('btn_word')}</button>
       </div>`;
-    container.appendChild(done);
-    done.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    container.appendChild(done); done.scrollIntoView({ behavior:'smooth', block:'end' });
   }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
   currentTab = tab;
-  document.getElementById('tab-single-content').style.display = tab === 'single' ? 'flex' : 'none';
-  document.getElementById('tab-orch-content').style.display  = tab === 'orchestration' ? 'flex' : 'none';
-  document.getElementById('tab-single').className = `px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab==='single'?'tab-active':'tab-inactive'}`;
-  document.getElementById('tab-orch').className   = `px-4 py-1.5 rounded-lg text-sm font-medium transition ${tab==='orchestration'?'tab-active':'tab-inactive'}`;
+  document.getElementById('tab-single-content').style.display = tab==='single'?'flex':'none';
+  document.getElementById('tab-orch-content').style.display   = tab==='orchestration'?'flex':'none';
+  document.getElementById('tab-single').className = `px-3 py-1.5 rounded-lg text-xs font-medium transition ${tab==='single'?'tab-active':'tab-inactive'}`;
+  document.getElementById('tab-orch').className   = `px-3 py-1.5 rounded-lg text-xs font-medium transition ${tab==='orchestration'?'tab-active':'tab-inactive'}`;
   renderSidebar();
 }
 
-function filterAgents(q) { renderSidebar(q.toLowerCase()); }
+function filterAgents(q) {
+  const v = q.toLowerCase();
+  document.getElementById('search-agents').value = v;
+  document.getElementById('search-agents-mobile').value = v;
+  renderSidebar(v);
+}
 
 function setRunBtnState(running) {
   document.getElementById('run-btn-text').textContent = running ? t('btn_running') : t('btn_run');
