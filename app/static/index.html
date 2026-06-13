@@ -22,13 +22,12 @@
   .tab-inactive { background: #1e2235; color: #94a3b8; }
   .tab-inactive:hover { background: #252a3a; }
   .badge { font-size: .65rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
-  .drag-over { border: 2px dashed #6366f1 !important; }
   textarea:focus, input:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
-  .result-step { border-left: 3px solid; padding-left: 1rem; margin-bottom: 1.5rem; }
   .copy-btn { opacity: 0; transition: opacity .2s; }
   .output-box:hover .copy-btn { opacity: 1; }
   .spinner { border: 3px solid #2d3148; border-top-color: #6366f1; border-radius: 50%; width: 20px; height: 20px; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .lang-btn { font-size: .7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; border: none; transition: background .15s, color .15s; letter-spacing: .5px; }
 </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -38,32 +37,40 @@
   <div class="flex items-center gap-3">
     <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg" style="background:#6366f1">🤖</div>
     <span class="font-bold text-lg tracking-tight">Agents Hub</span>
-    <span class="badge bg-indigo-900 text-indigo-300 ml-1">24 agentes</span>
+    <span class="badge bg-indigo-900 text-indigo-300 ml-1" id="agent-count-badge">24 agents</span>
   </div>
-  <div class="flex gap-2">
-    <button onclick="setTab('single')" id="tab-single" class="tab-active px-4 py-1.5 rounded-lg text-sm font-medium transition">Agente Individual</button>
-    <button onclick="setTab('orchestration')" id="tab-orch" class="tab-inactive px-4 py-1.5 rounded-lg text-sm font-medium transition">Orquestación</button>
+  <div class="flex gap-2 items-center">
+    <button onclick="setTab('single')" id="tab-single" class="tab-active px-4 py-1.5 rounded-lg text-sm font-medium transition" data-i18n="tab_single"></button>
+    <button onclick="setTab('orchestration')" id="tab-orch" class="tab-inactive px-4 py-1.5 rounded-lg text-sm font-medium transition" data-i18n="tab_orch"></button>
   </div>
-  <div class="text-xs text-gray-500">Llama 3.3 70B · Groq</div>
+  <div class="flex items-center gap-3">
+    <div class="text-xs text-gray-500">Llama 3.3 70B · Groq</div>
+    <!-- Language switcher -->
+    <div class="flex gap-1 ml-2" style="background:#1e2235; border-radius:8px; padding:3px">
+      <button id="lang-es" onclick="setLang('es')" class="lang-btn tab-active">ES</button>
+      <button id="lang-en" onclick="setLang('en')" class="lang-btn tab-inactive">EN</button>
+    </div>
+  </div>
 </header>
 
 <div class="flex flex-1 overflow-hidden">
 
   <!-- SIDEBAR -->
   <aside class="w-72 flex-shrink-0 border-r border-gray-800 overflow-y-auto p-3" style="background:#131620">
-    <input type="text" id="search-agents" placeholder="Buscar agente..." oninput="filterAgents(this.value)"
-      class="w-full px-3 py-2 rounded-lg text-sm mb-3" style="background:#1e2235; border:1px solid #2d3148; color:#e2e8f0" />
+    <input type="text" id="search-agents" oninput="filterAgents(this.value)"
+      class="w-full px-3 py-2 rounded-lg text-sm mb-3" style="background:#1e2235; border:1px solid #2d3148; color:#e2e8f0"
+      data-i18n-placeholder="search_placeholder" />
 
     <div id="sidebar-tech" class="mb-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">Tech</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_tech"></p>
       <div id="tech-agents" class="space-y-1"></div>
     </div>
     <div id="sidebar-biz" class="mb-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">Small Business</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_biz"></p>
       <div id="biz-agents" class="space-y-1"></div>
     </div>
     <div id="sidebar-docs">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">Documentos</p>
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2" data-i18n="cat_docs"></p>
       <div id="docs-agents" class="space-y-1"></div>
     </div>
   </aside>
@@ -81,30 +88,28 @@
           <div id="banner-desc" class="text-sm text-gray-400"></div>
         </div>
         <div class="ml-auto">
-          <button onclick="clearOutput()" class="text-xs text-gray-500 hover:text-gray-300 px-3 py-1 rounded-lg transition" style="background:#252a3a">Limpiar</button>
+          <button onclick="clearOutput()" class="text-xs text-gray-500 hover:text-gray-300 px-3 py-1 rounded-lg transition" style="background:#252a3a" data-i18n="btn_clear"></button>
         </div>
       </div>
-      <div id="no-agent-msg" class="text-center text-gray-500 py-6 text-sm">← Selecciona un agente del panel izquierdo</div>
+      <div id="no-agent-msg" class="text-center text-gray-500 py-6 text-sm" data-i18n="no_agent"></div>
 
       <!-- Output -->
       <div class="flex-1 overflow-y-auto">
         <div id="output" class="output-box relative" style="display:none">
           <div id="output-text"></div>
           <span id="cursor" class="blink hidden">▍</span>
-          <button onclick="copyOutput()" class="copy-btn absolute top-3 right-3 text-xs text-gray-400 hover:text-white px-2 py-1 rounded" style="background:#252a3a">Copiar</button>
+          <button onclick="copyOutput()" class="copy-btn absolute top-3 right-3 text-xs text-gray-400 hover:text-white px-2 py-1 rounded" style="background:#252a3a" data-i18n="btn_copy"></button>
         </div>
-        <!-- Download buttons (shown after a response) -->
+        <!-- Download buttons -->
         <div id="download-buttons" class="flex gap-2 mt-2" style="display:none">
           <button onclick="downloadDoc('pdf')"
             class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
-            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-            📄 Descargar PDF
-          </button>
+            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
+            data-i18n="btn_pdf"></button>
           <button onclick="downloadDoc('docx')"
             class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
-            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-            📝 Descargar Word
-          </button>
+            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
+            data-i18n="btn_word"></button>
         </div>
         <!-- History -->
         <div id="history" class="space-y-3 mt-3"></div>
@@ -116,9 +121,8 @@
         <div class="flex items-center gap-2 mb-2 flex-wrap">
           <label for="file-input"
             class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition hover:opacity-80"
-            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-            📎 Adjuntar PDF / Word
-          </label>
+            style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
+            data-i18n="btn_attach"></label>
           <input type="file" id="file-input" accept=".pdf,.docx" class="hidden" onchange="handleFileUpload(this)" />
           <div id="doc-badge" class="hidden items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
             style="background:#1a1d27; border:1px solid #6366f1; color:#a5b4fc">
@@ -127,22 +131,23 @@
           </div>
           <div id="doc-loading" class="hidden items-center gap-1.5 text-xs text-gray-500">
             <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
-            <span>Extrayendo texto...</span>
+            <span data-i18n="extracting"></span>
           </div>
         </div>
         <div class="flex gap-2 items-end">
-          <textarea id="task-input" rows="3" placeholder="Describe la tarea para este agente..."
+          <textarea id="task-input" rows="3"
             class="flex-1 rounded-xl px-4 py-3 text-sm resize-none"
             style="background:#1a1d27; border:1px solid #2d3148; color:#e2e8f0"
+            data-i18n-placeholder="task_placeholder"
             onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))runAgent()"></textarea>
           <button onclick="runAgent()" id="run-btn"
             class="px-5 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-2"
             style="background:#6366f1; color:white; min-width:100px">
-            <span id="run-btn-text">Ejecutar</span>
+            <span id="run-btn-text" data-i18n="btn_run"></span>
             <span id="run-spinner" class="spinner hidden"></span>
           </button>
         </div>
-        <p class="text-xs text-gray-600 mt-1 ml-1">Ctrl+Enter para ejecutar</p>
+        <p class="text-xs text-gray-600 mt-1 ml-1" data-i18n="hint_shortcut"></p>
       </div>
     </div>
 
@@ -152,33 +157,30 @@
       <!-- Pipeline builder -->
       <div class="w-80 flex-shrink-0 border-r border-gray-800 flex flex-col p-4 gap-3" style="background:#131620">
         <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-sm">Pipeline</h2>
+          <h2 class="font-semibold text-sm" data-i18n="pipeline_title"></h2>
           <div class="flex gap-1">
             <button onclick="setPipelineMode('sequential')" id="btn-seq"
-              class="text-xs px-3 py-1 rounded-lg tab-active transition">Secuencial</button>
+              class="text-xs px-3 py-1 rounded-lg tab-active transition" data-i18n="btn_sequential"></button>
             <button onclick="setPipelineMode('parallel')" id="btn-par"
-              class="text-xs px-3 py-1 rounded-lg tab-inactive transition">Paralelo</button>
+              class="text-xs px-3 py-1 rounded-lg tab-inactive transition" data-i18n="btn_parallel"></button>
           </div>
         </div>
 
-        <p class="text-xs text-gray-500" id="mode-desc">Los agentes se ejecutan en orden, pasando el resultado al siguiente.</p>
+        <p class="text-xs text-gray-500" id="mode-desc" data-i18n="mode_seq_desc"></p>
 
         <div id="pipeline-steps" class="space-y-2 overflow-y-auto flex-1"></div>
 
-        <div id="pipeline-empty" class="text-center text-gray-600 text-xs py-4">
-          Haz clic en los agentes del panel izquierdo para agregarlos al pipeline
-        </div>
+        <div id="pipeline-empty" class="text-center text-gray-600 text-xs py-4" data-i18n="pipeline_empty"></div>
 
-        <button onclick="clearPipeline()" class="text-xs text-gray-500 hover:text-red-400 transition text-left">Limpiar pipeline</button>
+        <button onclick="clearPipeline()" class="text-xs text-gray-500 hover:text-red-400 transition text-left" data-i18n="btn_clear_pipeline"></button>
 
         <!-- Document attachment for orchestration -->
         <div class="border-t pt-3 space-y-2" style="border-color:#1e2235">
           <div class="flex items-center gap-2 flex-wrap">
             <label for="orch-file-input"
               class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition hover:opacity-80"
-              style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-              📎 Adjuntar PDF / Word
-            </label>
+              style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer"
+              data-i18n="btn_attach"></label>
             <input type="file" id="orch-file-input" accept=".pdf,.docx" class="hidden"
               onchange="handleFileUpload(this)" />
             <div id="orch-doc-badge" class="hidden items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
@@ -188,7 +190,7 @@
             </div>
             <div id="orch-doc-loading" class="hidden items-center gap-1.5 text-xs text-gray-500">
               <div class="spinner" style="width:12px;height:12px;border-width:2px"></div>
-              <span>Extrayendo...</span>
+              <span data-i18n="extracting_short"></span>
             </div>
           </div>
         </div>
@@ -196,16 +198,14 @@
         <button onclick="runOrchestration()" id="orch-run-btn"
           class="w-full py-2.5 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2"
           style="background:#6366f1; color:white">
-          <span id="orch-btn-text">▶ Ejecutar Pipeline</span>
+          <span id="orch-btn-text" data-i18n="btn_run_pipeline"></span>
           <span id="orch-spinner" class="spinner hidden"></span>
         </button>
       </div>
 
       <!-- Orchestration output -->
       <div class="flex-1 overflow-y-auto p-5">
-        <div id="orch-placeholder" class="text-center text-gray-600 text-sm pt-10">
-          Arma tu pipeline y ejecuta para ver los resultados aquí
-        </div>
+        <div id="orch-placeholder" class="text-center text-gray-600 text-sm pt-10" data-i18n="orch_placeholder"></div>
         <div id="orch-results" class="space-y-4" style="display:none"></div>
       </div>
     </div>
@@ -214,6 +214,124 @@
 </div>
 
 <script>
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  es: {
+    tab_single:        'Agente Individual',
+    tab_orch:          'Orquestación',
+    search_placeholder:'Buscar agente...',
+    cat_tech:          'Tech',
+    cat_biz:           'Small Business',
+    cat_docs:          'Documentos',
+    no_agent:          '← Selecciona un agente del panel izquierdo',
+    btn_clear:         'Limpiar',
+    btn_copy:          'Copiar',
+    task_placeholder:  'Describe la tarea para este agente...',
+    btn_run:           'Ejecutar',
+    btn_running:       'Ejecutando...',
+    hint_shortcut:     'Ctrl+Enter para ejecutar',
+    btn_attach:        '📎 Adjuntar PDF / Word',
+    extracting:        'Extrayendo texto...',
+    extracting_short:  'Extrayendo...',
+    btn_pdf:           '📄 Descargar PDF',
+    btn_word:          '📝 Descargar Word',
+    copied:            'Copiado al portapapeles',
+    pipeline_title:    'Pipeline',
+    btn_sequential:    'Secuencial',
+    btn_parallel:      'Paralelo',
+    mode_seq_desc:     'Los agentes se ejecutan en orden, pasando el resultado al siguiente.',
+    mode_par_desc:     'Todos los agentes reciben la misma entrada y corren en paralelo.',
+    pipeline_empty:    'Haz clic en los agentes del panel izquierdo para agregarlos al pipeline',
+    btn_clear_pipeline:'Limpiar pipeline',
+    btn_run_pipeline:  '▶ Ejecutar Pipeline',
+    btn_running_pipeline:'Ejecutando...',
+    orch_placeholder:  'Arma tu pipeline y ejecuta para ver los resultados aquí',
+    step_placeholder:  'Tarea para este agente...',
+    step_label:        'Paso',
+    pipeline_done:     '✓ Pipeline completado',
+    error_doc:         'Error al procesar el documento: ',
+    error_tasks:       'Agrega tareas a los pasos del pipeline.',
+    error_doc_gen:     'Error al generar el documento',
+    agents_label:      'agentes',
+    running_label:     'Ejecutando...',
+  },
+  en: {
+    tab_single:        'Single Agent',
+    tab_orch:          'Orchestration',
+    search_placeholder:'Search agent...',
+    cat_tech:          'Tech',
+    cat_biz:           'Small Business',
+    cat_docs:          'Documents',
+    no_agent:          '← Select an agent from the left panel',
+    btn_clear:         'Clear',
+    btn_copy:          'Copy',
+    task_placeholder:  'Describe the task for this agent...',
+    btn_run:           'Run',
+    btn_running:       'Running...',
+    hint_shortcut:     'Ctrl+Enter to run',
+    btn_attach:        '📎 Attach PDF / Word',
+    extracting:        'Extracting text...',
+    extracting_short:  'Extracting...',
+    btn_pdf:           '📄 Download PDF',
+    btn_word:          '📝 Download Word',
+    copied:            'Copied to clipboard',
+    pipeline_title:    'Pipeline',
+    btn_sequential:    'Sequential',
+    btn_parallel:      'Parallel',
+    mode_seq_desc:     'Agents run in order, passing the result to the next one.',
+    mode_par_desc:     'All agents receive the same input and run in parallel.',
+    pipeline_empty:    'Click agents from the left panel to add them to the pipeline',
+    btn_clear_pipeline:'Clear pipeline',
+    btn_run_pipeline:  '▶ Run Pipeline',
+    btn_running_pipeline:'Running...',
+    orch_placeholder:  'Build your pipeline and run to see results here',
+    step_placeholder:  'Task for this agent...',
+    step_label:        'Step',
+    pipeline_done:     '✓ Pipeline completed',
+    error_doc:         'Error processing document: ',
+    error_tasks:       'Add tasks to the pipeline steps.',
+    error_doc_gen:     'Error generating document',
+    agents_label:      'agents',
+    running_label:     'Running...',
+  },
+};
+
+let lang = 'es';
+
+function t(key) {
+  return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.es[key] || key;
+}
+
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  document.getElementById('lang-es').className = `lang-btn ${l === 'es' ? 'tab-active' : 'tab-inactive'}`;
+  document.getElementById('lang-en').className = `lang-btn ${l === 'en' ? 'tab-active' : 'tab-inactive'}`;
+  applyTranslations();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // Agent count badge
+  const count = agents.length || 24;
+  document.getElementById('agent-count-badge').textContent = `${count} ${t('agents_label')}`;
+  // Dynamic state-dependent strings
+  if (!isRunning) {
+    document.getElementById('run-btn-text').textContent = t('btn_run');
+    document.getElementById('orch-btn-text').textContent = t('btn_run_pipeline');
+  }
+  document.getElementById('mode-desc').textContent =
+    pipelineMode === 'sequential' ? t('mode_seq_desc') : t('mode_par_desc');
+  renderSidebar();
+  renderPipeline();
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
 let agents = [];
 let selectedAgent = null;
 let currentTab = 'single';
@@ -227,9 +345,11 @@ let currentOrchOutput = '';
 async function init() {
   const res = await fetch('/api/agents');
   agents = await res.json();
+  applyTranslations();
   renderSidebar();
 }
 
+// ── Sidebar ───────────────────────────────────────────────────────────────────
 function renderSidebar(filter = '') {
   const f = filter.toLowerCase();
   const tech = agents.filter(a => a.category === 'tech' && (!f || a.name.toLowerCase().includes(f)));
@@ -242,7 +362,7 @@ function renderSidebar(filter = '') {
 }
 
 function agentCard(a) {
-  const inPipeline = pipeline.some(s => s.agentId === a.id && currentTab === 'orchestration');
+  const inPipeline = pipeline.some(s => s.agentId === a.id) && currentTab === 'orchestration';
   return `
   <div class="agent-card rounded-lg px-3 py-2 flex items-center gap-2 ${inPipeline ? 'in-pipeline' : ''}"
        style="background:#1a1d27; --card-color:${a.color}"
@@ -277,6 +397,7 @@ function selectAgent(agentId) {
   document.getElementById('task-input').focus();
 }
 
+// ── Single agent ──────────────────────────────────────────────────────────────
 async function runAgent() {
   if (!selectedAgent || isRunning) return;
   const task = document.getElementById('task-input').value.trim();
@@ -352,7 +473,7 @@ function addToHistory(agent, task, result) {
       <span class="text-xs font-medium" style="color:${agent.color}">${agent.name}</span>
       <span class="text-xs text-gray-600 ml-auto">${new Date().toLocaleTimeString()}</span>
     </div>
-    <div class="text-xs text-gray-400 mb-2 italic truncate">"${task}"</div>
+    <div class="text-xs text-gray-400 mb-2 italic truncate">"${escapeHtml(task)}"</div>
     <div class="text-sm text-gray-300" style="white-space:pre-wrap;max-height:200px;overflow-y:auto">${escapeHtml(result)}</div>`;
   history.prepend(item);
 }
@@ -367,19 +488,16 @@ function clearOutput() {
 
 function copyOutput() {
   const text = document.getElementById('output-text').textContent;
-  navigator.clipboard.writeText(text).then(() => alert('Copiado al portapapeles'));
+  navigator.clipboard.writeText(text).then(() => alert(t('copied')));
 }
 
-// --- DOCUMENT UPLOAD ---
-
+// ── Document upload ───────────────────────────────────────────────────────────
 async function handleFileUpload(input) {
   const file = input.files[0];
   if (!file) return;
 
-  // Show loading in whichever panel triggered the upload
   const isOrch = input.id === 'orch-file-input';
-  const loadingId = isOrch ? 'orch-doc-loading' : 'doc-loading';
-  const loading = document.getElementById(loadingId);
+  const loading = document.getElementById(isOrch ? 'orch-doc-loading' : 'doc-loading');
   loading.style.display = 'flex';
   hideBothDocBadges();
 
@@ -396,13 +514,12 @@ async function handleFileUpload(input) {
     documentContext = data.text;
     const kb = Math.round(data.chars / 100) / 10;
     const label = `📎 ${file.name} · ${kb}k chars`;
-    // Show badge in both panels so it's always visible regardless of active tab
     document.getElementById('doc-badge-name').textContent = label;
     document.getElementById('doc-badge').style.display = 'flex';
     document.getElementById('orch-doc-badge-name').textContent = label;
     document.getElementById('orch-doc-badge').style.display = 'flex';
   } catch (e) {
-    alert('Error al procesar el documento: ' + e.message);
+    alert(t('error_doc') + e.message);
     documentContext = '';
   } finally {
     loading.style.display = 'none';
@@ -422,9 +539,10 @@ function clearDocument() {
   document.getElementById('orch-file-input').value = '';
 }
 
+// ── Document download ─────────────────────────────────────────────────────────
 async function downloadDoc(format) {
   if (!currentOutput) return;
-  const name = selectedAgent ? selectedAgent.name : 'Reporte';
+  const name = selectedAgent ? selectedAgent.name : 'Report';
   await triggerDocDownload(currentOutput, format, name);
 }
 
@@ -440,7 +558,7 @@ async function triggerDocDownload(content, format, name) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, format, filename: name }),
     });
-    if (!res.ok) throw new Error('Error al generar el documento');
+    if (!res.ok) throw new Error(t('error_doc_gen'));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -453,12 +571,9 @@ async function triggerDocDownload(content, format, name) {
   }
 }
 
-// --- ORCHESTRATION ---
-
+// ── Orchestration ─────────────────────────────────────────────────────────────
 function addToPipeline(agentId) {
-  const agent = agents.find(a => a.id === agentId);
-  if (!agent) return;
-  const idx = pipeline.length;
+  if (!agents.find(a => a.id === agentId)) return;
   pipeline.push({ agentId, task: '' });
   renderPipeline();
 }
@@ -483,14 +598,13 @@ function renderPipeline() {
         <span class="text-sm">${agent.icon} ${agent.name}</span>
         <button onclick="removeFromPipeline(${idx})" class="ml-auto text-gray-600 hover:text-red-400 text-xs">✕</button>
       </div>
-      <textarea rows="2" placeholder="Tarea para este agente..."
+      <textarea rows="2" placeholder="${escapeHtml(t('step_placeholder'))}"
         class="w-full px-2 py-1.5 rounded-lg text-xs resize-none"
         style="background:#252a3a; border:1px solid #374151; color:#e2e8f0"
         oninput="pipeline[${idx}].task=this.value">${escapeHtml(step.task)}</textarea>
     </div>`;
   }).join('');
 
-  // Update sidebar cards opacity
   renderSidebar();
 }
 
@@ -503,18 +617,16 @@ function setPipelineMode(mode) {
   pipelineMode = mode;
   document.getElementById('btn-seq').className = `text-xs px-3 py-1 rounded-lg transition ${mode==='sequential'?'tab-active':'tab-inactive'}`;
   document.getElementById('btn-par').className  = `text-xs px-3 py-1 rounded-lg transition ${mode==='parallel'?'tab-active':'tab-inactive'}`;
-  document.getElementById('mode-desc').textContent = mode === 'sequential'
-    ? 'Los agentes se ejecutan en orden, pasando el resultado al siguiente.'
-    : 'Todos los agentes reciben la misma entrada y corren en paralelo.';
+  document.getElementById('mode-desc').textContent = mode === 'sequential' ? t('mode_seq_desc') : t('mode_par_desc');
 }
 
 async function runOrchestration() {
   if (isRunning || pipeline.length === 0) return;
   const steps = pipeline.filter(s => s.task.trim());
-  if (steps.length === 0) { alert('Agrega tareas a los pasos del pipeline.'); return; }
+  if (steps.length === 0) { alert(t('error_tasks')); return; }
 
   isRunning = true;
-  document.getElementById('orch-btn-text').textContent = 'Ejecutando...';
+  document.getElementById('orch-btn-text').textContent = t('btn_running_pipeline');
   document.getElementById('orch-spinner').classList.remove('hidden');
 
   const resultsEl = document.getElementById('orch-results');
@@ -522,8 +634,8 @@ async function runOrchestration() {
   resultsEl.style.display = 'block';
   placeholder.style.display = 'none';
   resultsEl.innerHTML = '';
-
   currentOrchOutput = '';
+
   try {
     const res = await fetch('/api/orchestrate/stream', {
       method: 'POST',
@@ -545,21 +657,16 @@ async function runOrchestration() {
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        try {
-          const msg = JSON.parse(data);
-          handleOrchMessage(msg, resultsEl, steps);
-        } catch {}
+        try { handleOrchMessage(JSON.parse(line.slice(6)), resultsEl, steps); } catch {}
       }
     }
   } catch (e) {
-    resultsEl.innerHTML = `<div class="text-red-400 text-sm">Error: ${e.message}</div>`;
+    resultsEl.innerHTML = `<div class="text-red-400 text-sm">Error: ${escapeHtml(e.message)}</div>`;
   } finally {
     isRunning = false;
-    document.getElementById('orch-btn-text').textContent = '▶ Ejecutar Pipeline';
+    document.getElementById('orch-btn-text').textContent = t('btn_run_pipeline');
     document.getElementById('orch-spinner').classList.add('hidden');
   }
 }
@@ -573,17 +680,16 @@ function handleOrchMessage(msg, container, steps) {
     el.innerHTML = `
       <div class="flex items-center gap-2 mb-3">
         <span class="text-lg">${msg.icon}</span>
-        <span class="font-medium text-sm">${msg.agent}</span>
-        <span class="badge bg-indigo-900 text-indigo-300">Paso ${msg.step}/${msg.total}</span>
+        <span class="font-medium text-sm">${escapeHtml(msg.agent)}</span>
+        <span class="badge bg-indigo-900 text-indigo-300">${t('step_label')} ${msg.step}/${msg.total}</span>
         <div class="spinner ml-auto"></div>
       </div>
       <div class="text-xs text-gray-500 italic mb-2">"${escapeHtml(steps[msg.step-1]?.task || '')}"</div>
-      <div class="output-box text-xs" id="orch-output-${msg.step}">Ejecutando...</div>`;
+      <div class="output-box text-xs" id="orch-output-${msg.step}">${t('running_label')}</div>`;
     container.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } else if (msg.type === 'step_result' || msg.type === 'parallel_result') {
     let el = document.getElementById(`orch-step-${msg.step}`);
-
     if (!el) {
       el = document.createElement('div');
       el.id = `orch-step-${msg.step}`;
@@ -592,34 +698,32 @@ function handleOrchMessage(msg, container, steps) {
       el.innerHTML = `
         <div class="flex items-center gap-2 mb-3">
           <span class="text-lg">${msg.icon || '🤖'}</span>
-          <span class="font-medium text-sm">${msg.agent}</span>
+          <span class="font-medium text-sm">${escapeHtml(msg.agent)}</span>
         </div>
         <div class="output-box text-xs" id="orch-output-${msg.step}"></div>`;
       container.appendChild(el);
     }
-
     const spinner = el.querySelector('.spinner');
     if (spinner) spinner.remove();
     const out = document.getElementById(`orch-output-${msg.step}`);
     if (out) out.textContent = msg.content;
-    // Accumulate all step outputs for download
-    currentOrchOutput += `--- Paso ${msg.step}: ${msg.agent} ---\n${msg.content}\n\n`;
+    currentOrchOutput += `--- ${t('step_label')} ${msg.step}: ${msg.agent} ---\n${msg.content}\n\n`;
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } else if (msg.type === 'done') {
     const done = document.createElement('div');
     done.className = 'text-center py-3';
     done.innerHTML = `
-      <div class="text-green-400 text-sm font-medium mb-2">✓ Pipeline completado</div>
+      <div class="text-green-400 text-sm font-medium mb-2">${t('pipeline_done')}</div>
       <div class="flex justify-center gap-2">
         <button onclick="downloadOrchDoc('pdf')"
           class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
           style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-          📄 Descargar PDF
+          ${t('btn_pdf')}
         </button>
         <button onclick="downloadOrchDoc('docx')"
           class="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition hover:opacity-80"
           style="background:#1e2235; color:#94a3b8; border:1px solid #2d3148; cursor:pointer">
-          📝 Descargar Word
+          ${t('btn_word')}
         </button>
       </div>`;
     container.appendChild(done);
@@ -627,7 +731,7 @@ function handleOrchMessage(msg, container, steps) {
   }
 }
 
-// --- TABS ---
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
   currentTab = tab;
   document.getElementById('tab-single-content').style.display = tab === 'single' ? 'flex' : 'none';
@@ -640,7 +744,7 @@ function setTab(tab) {
 function filterAgents(q) { renderSidebar(q.toLowerCase()); }
 
 function setRunBtnState(running) {
-  document.getElementById('run-btn-text').textContent = running ? 'Ejecutando...' : 'Ejecutar';
+  document.getElementById('run-btn-text').textContent = running ? t('btn_running') : t('btn_run');
   document.getElementById('run-spinner').classList.toggle('hidden', !running);
   document.getElementById('run-btn').disabled = running;
 }
